@@ -51,7 +51,7 @@ local Library = {
     Font     = Enum.Font.RobotoMono,
     BoldFont = Enum.Font.RobotoMono,
     MonoFont = Enum.Font.RobotoMono,
-    ChipFont = Enum.Font.GothamBold,
+    ChipFont = Enum.Font.RobotoMono,
     TextSize = 12,
     ToggleKey = Enum.KeyCode.RightShift,
     Flags = {},
@@ -4072,29 +4072,19 @@ local function safeBuiltInSky(base, fallback)
 end
 
 local skyPresets = {
-    ["Off (restore map)"] = nil,
-    ["Built-in: Clear Day (sky512)"] = rbxassetSky("sky512"),
-    ["Built-in: Indoor (indoor512)"] = rbxassetSky("indoor512"),
-    ["Community: Tropic"] = {
+    ["Off"] = nil,
+    ["Tropic"] = {
         bk = rbxid(169210090), dn = rbxid(169210108), ft = rbxid(169210121),
         lf = rbxid(169210133), rt = rbxid(169210143), up = rbxid(169210149),
     },
-    ["Community: Grey abstract"] = {
+    ["Grey abstract"] = {
         bk = rbxid(196263721), dn = rbxid(196263643), ft = rbxid(196263721),
         lf = rbxid(196263721), rt = rbxid(196263721), up = rbxid(196263782),
     },
-    ["Community: Sunset orange"] = {
+    ["Sunset orange"] = {
         bk = rbxid(323494035), dn = rbxid(323494368), ft = rbxid(323494130),
         lf = rbxid(323494252), rt = rbxid(323494067), up = rbxid(323493360),
     },
-    ["Built-in: Puffy clouds (clouds512)"] = (function()
-        local okp, t = pcall(rbxassetSky, "clouds512")
-        return okp and t or rbxassetSky("sky512")
-    end)(),
-    ["Built-in: Moon (moon512)"] = (function()
-        local okm, t = pcall(rbxassetSky, "moon512")
-        return okm and t or rbxassetSky("sky512")
-    end)(),
     ["Tropic + heavy stars"] = {
         bk = rbxid(169210090), dn = rbxid(169210108), ft = rbxid(169210121),
         lf = rbxid(169210133), rt = rbxid(169210143), up = rbxid(169210149),
@@ -4105,45 +4095,39 @@ local skyPresets = {
         lf = rbxid(323494252), rt = rbxid(323494067), up = rbxid(323493360),
         noCelestial = true,
     },
-    ["Community: Classic night (6-face)"] = skySix(48020371, 48020144, 48020234, 48020211, 48020254, 48020383),
-    ["Community: Red night (6-face)"] = skySix(401664839, 401664862, 401664960, 401664881, 401664901, 401664936),
-    ["Community: Blue horizon (6-face)"] = skySix(135483466, 135483484, 135483461, 135483495, 135483499, 135483475),
-    ["Community: Galaxy (6-face)"] = skySix(159454299, 159454296, 159454293, 159454286, 159454300, 159454288),
-    ["Community: Vaporwave (6-face)"] = skySix(8631780182, 8631784904, 8631769834, 8631777199, 8631735555, 8631782345, { noCelestial = true }),
-    ["Juju: Crimson sky"] = skySix(15832429892, 15832430998, 15832430210, 15832430671, 15832431198, 15832429401),
-    ["Juju: Orange fog"] = skySix(458016711, 458016826, 458016532, 458016655, 458016782, 458016792),
-    ["Juju: Purple fog"] = skySix(17279854976, 17279856318, 17279858447, 17279860360, 17279862234, 17279864507),
-    ["Juju: Pink day"] = skySix(32016462, 32016269, 32148872, 32142342, 32161426, 32159239),
-    ["Juju: Hell sky"] = skySix(7413114315, 7413117909, 7413120076, 7413122174, 7413124109, 7413126495),
-    ["Juju: Alien red"] = skySix(6299692940, 6299698261, 6299706190, 6299718196, 6299722786, 6299728896),
-    ["Juju: Blue abyss"] = skySix(16269815885, 16269839652, 16269798011, 16269813852, 16269814948, 16269829700),
-    ["Juju: Green nebula"] = skySix(47974894, 47974690, 47974821, 47974776, 47974859, 47974909),
-    ["Juju: Green aurora"] = skySix(16563478983, 16563481302, 16563484084, 16563485362, 16563487078, 16563489821),
-    ["Juju: Starry night"] = skySix(12064107, 12064152, 12064284, 12064426, 12064496, 12064538),
-    ["Juju: Anime dusk"] = skySix(7643700666, 7643743687, 7644304186, 7644288724, 7643700819, 7643757404),
-    ["Juju: Underwater"] = skySix(227635868, 227635921, 227635954, 227635974, 227635990, 227636031),
-    ["Juju: Fade night"] = skySix(16888843486, 16888845693, 16888848245, 16888850949, 16888854243, 16888857144),
-    ["Juju: Walls of autumn"] = skySix(12512410098, 12512411568, 12512412729, 12512413695, 12512414488, 12512415176),
-    ["Juju: Cold wintriness"] = skySix(15376821399, 15376822468, 15376823448, 15376824472, 15376825432, 15376826183),
-    ["Juju: Oblivion"] = skySix(12512410098, 12512411568, 12512412729, 12512413695, 12512414488, 12512415176),
-    ["Juju: Black storm"] = skySix(610159646, 610159674, 610159704, 610159734, 610159764, 610159794),
-    ["Built-in: Sky (sky256)"] = safeBuiltInSky("sky256"),
-    ["Built-in: Clouds (clouds256)"] = safeBuiltInSky("clouds256"),
-    ["Built-in: Sunset (sunset512)"] = safeBuiltInSky("sunset512"),
-    ["Built-in: Night (night512)"] = safeBuiltInSky("night512"),
-    ["Built-in: Blizzard (blizzard512)"] = safeBuiltInSky("blizzard512"),
-    ["Built-in: Red clouds (redclouds512)"] = safeBuiltInSky("redclouds512"),
-    ["Community: Cotton candy"] = skySix(1084972350, 1084974061, 1084973491, 1084972720, 1084973105, 1084973867),
-    ["Community: Pink clouds"] = skySix(271042516, 271077243, 271042556, 271042596, 271042659, 271077898),
-    ["Community: Dark space"] = skySix(161097077, 161097112, 161097153, 161097192, 161097243, 161097290),
-    ["Community: Arctic white"] = skySix(155092321, 155092345, 155092368, 155092390, 155092412, 155092436),
-    ["Community: Lofi purple"] = skySix(8631780182, 8631784904, 8631769834, 8631777199, 8631735555, 8631782345, { noCelestial = true }),
-    ["Community: Blood moon"] = skySix(401664839, 401664862, 401664960, 401664881, 401664901, 401664936, { noCelestial = true }),
-    ["Community: Ocean depth"] = skySix(227635868, 227635921, 227635954, 227635974, 227635990, 227636031),
-    ["Community: Neon night"] = skySix(159454299, 159454296, 159454293, 159454286, 159454300, 159454288, { starCount = 5000 }),
-    ["Community: Warm sunrise"] = skySix(323494035, 323494368, 323494130, 323494252, 323494067, 323493360, { noCelestial = true }),
-    ["Community: Overcast grey"] = skySix(196263721, 196263643, 196263721, 196263721, 196263721, 196263782),
-    ["Community: Emerald dream"] = skySix(47974894, 47974690, 47974821, 47974776, 47974859, 47974909, { starCount = 2000 }),
+    ["Classic night "] = skySix(48020371, 48020144, 48020234, 48020211, 48020254, 48020383),
+    ["Red night "] = skySix(401664839, 401664862, 401664960, 401664881, 401664901, 401664936),
+    ["Blue horizon "] = skySix(135483466, 135483484, 135483461, 135483495, 135483499, 135483475),
+    ["Galaxy "] = skySix(159454299, 159454296, 159454293, 159454286, 159454300, 159454288),
+    ["Vaporwave "] = skySix(8631780182, 8631784904, 8631769834, 8631777199, 8631735555, 8631782345, { noCelestial = true }),
+    ["Crimson sky"] = skySix(15832429892, 15832430998, 15832430210, 15832430671, 15832431198, 15832429401),
+    ["Orange fog"] = skySix(458016711, 458016826, 458016532, 458016655, 458016782, 458016792),
+    ["Purple fog"] = skySix(17279854976, 17279856318, 17279858447, 17279860360, 17279862234, 17279864507),
+    ["Pink day"] = skySix(32016462, 32016269, 32148872, 32142342, 32161426, 32159239),
+    ["Hell sky"] = skySix(7413114315, 7413117909, 7413120076, 7413122174, 7413124109, 7413126495),
+    ["Alien red"] = skySix(6299692940, 6299698261, 6299706190, 6299718196, 6299722786, 6299728896),
+    ["Blue abyss"] = skySix(16269815885, 16269839652, 16269798011, 16269813852, 16269814948, 16269829700),
+    ["Green nebula"] = skySix(47974894, 47974690, 47974821, 47974776, 47974859, 47974909),
+    ["Green aurora"] = skySix(16563478983, 16563481302, 16563484084, 16563485362, 16563487078, 16563489821),
+    ["Starry night"] = skySix(12064107, 12064152, 12064284, 12064426, 12064496, 12064538),
+    ["Anime dusk"] = skySix(7643700666, 7643743687, 7644304186, 7644288724, 7643700819, 7643757404),
+    ["Underwater"] = skySix(227635868, 227635921, 227635954, 227635974, 227635990, 227636031),
+    ["Fade night"] = skySix(16888843486, 16888845693, 16888848245, 16888850949, 16888854243, 16888857144),
+    ["Walls of autumn"] = skySix(12512410098, 12512411568, 12512412729, 12512413695, 12512414488, 12512415176),
+    ["Cold wintriness"] = skySix(15376821399, 15376822468, 15376823448, 15376824472, 15376825432, 15376826183),
+    ["Oblivion"] = skySix(12512410098, 12512411568, 12512412729, 12512413695, 12512414488, 12512415176),
+    ["Black storm"] = skySix(610159646, 610159674, 610159704, 610159734, 610159764, 610159794),
+    ["Cotton candy"] = skySix(1084972350, 1084974061, 1084973491, 1084972720, 1084973105, 1084973867),
+    ["Pink clouds"] = skySix(271042516, 271077243, 271042556, 271042596, 271042659, 271077898),
+    ["Dark space"] = skySix(161097077, 161097112, 161097153, 161097192, 161097243, 161097290),
+    ["Arctic white"] = skySix(155092321, 155092345, 155092368, 155092390, 155092412, 155092436),
+    ["Lofi purple"] = skySix(8631780182, 8631784904, 8631769834, 8631777199, 8631735555, 8631782345, { noCelestial = true }),
+    ["Blood moon"] = skySix(401664839, 401664862, 401664960, 401664881, 401664901, 401664936, { noCelestial = true }),
+    ["Ocean depth"] = skySix(227635868, 227635921, 227635954, 227635974, 227635990, 227636031),
+    ["Neon night"] = skySix(159454299, 159454296, 159454293, 159454286, 159454300, 159454288, { starCount = 5000 }),
+    ["Warm sunrise"] = skySix(323494035, 323494368, 323494130, 323494252, 323494067, 323493360, { noCelestial = true }),
+    ["Overcast grey"] = skySix(196263721, 196263643, 196263721, 196263721, 196263721, 196263782),
+    ["Emerald dream"] = skySix(47974894, 47974690, 47974821, 47974776, 47974859, 47974909, { starCount = 2000 }),
 }
 
 local skyOptionNames = {}
@@ -4154,7 +4138,7 @@ table.sort(skyOptionNames)
 
 local function applySkyPresetRow(name)
     rememberSkies()
-    if name == "Off (restore map)" or not skyPresets[name] then
+    if name == "Off" or not skyPresets[name] then
         restoreOriginalSkies()
         jujuNotify("Sky: restored map default", 2)
         return
@@ -4277,10 +4261,10 @@ do
 -- ---------------------------------------------------------------------------
 local WX_SNOW_TEXTURE = "http://www.roblox.com/asset/?id=99851851"
 local WX_SNOW_SOUND = "rbxassetid://9125402735"
-local WX_SNOW_FLAKE_SIZE = 1.15
+local WX_SNOW_FLAKE_SIZE = 0.9
 local WX_SNOW_GRID_SPACING = 95
 local WX_SNOW_GRID_PAD = 60
-local WX_SNOW_HEIGHT_ABOVE_MAP = 75
+local WX_SNOW_HEIGHT_ABOVE_MAP = 65
 local WX_SNOW_MAX_CELLS = 81
 local WX_SNOW_INDOOR_CEILING = 42
 
@@ -5147,7 +5131,6 @@ do
 -- ---------------------------------------------------------------------------
 local MISC_ESP_IMAGE_PRESET_IDS = {
     ["Custom (textbox below)"] = nil,
-    ["Built-in: UI placeholder"] = "rbxasset://textures/ui/GuiImagePlaceholder.png",
     ["Doge"] = "rbxassetid://631727250",
     ["Epic Duck"] = "rbxassetid://92401568",
     ["Elmo fire"] = "rbxassetid://10901055606",
@@ -5252,7 +5235,7 @@ local function miscEspEnsureNameTag(plr, ch, col)
         bbg.LightInfluence = 0
         bbg.AlwaysOnTop = true
         bbg.MaxDistance = 0
-        bbg.Size = UDim2.fromOffset(176, 38)
+        bbg.Size = UDim2.fromOffset(120, 20)
         bbg.StudsOffset = Vector3.new(0, 2.2, 0)
         bbg.Parent = head
         local tl = Instance.new("TextLabel")
@@ -5262,18 +5245,12 @@ local function miscEspEnsureNameTag(plr, ch, col)
         tl.TextColor3 = col
         tl.TextStrokeColor3 = Color3.fromRGB(12, 14, 22)
         tl.TextStrokeTransparency = 0.4
-        tl.TextSize = 15
+        tl.TextSize = 11
         tl.TextScaled = false
-        tl.Font = Enum.Font.GothamBold
+        tl.Font = Enum.Font.RobotoMono
         tl.Text = display
         tl.Parent = bbg
-        pcall(function()
-            tl.FontFace = Font.new(
-                "rbxasset://fonts/families/GothamSSm.json",
-                Enum.FontWeight.Bold,
-                Enum.FontStyle.Normal
-            )
-        end)
+
         local st = Instance.new("UIStroke")
         st.Color = Color3.fromRGB(0, 0, 0)
         st.Transparency = 0.5
@@ -5282,21 +5259,14 @@ local function miscEspEnsureNameTag(plr, ch, col)
         st.Parent = tl
     else
         bbg.MaxDistance = 0
-        bbg.Size = UDim2.fromOffset(176, 38)
+        bbg.Size = UDim2.fromOffset(120, 20)
         bbg.StudsOffset = Vector3.new(0, 2.2, 0)
         local tl = bbg:FindFirstChild("Text")
         if tl and tl:IsA("TextLabel") then
             tl.Text = display
             tl.TextColor3 = col
-            tl.TextSize = 15
-            tl.Font = Enum.Font.GothamBold
-            pcall(function()
-                tl.FontFace = Font.new(
-                    "rbxasset://fonts/families/GothamSSm.json",
-                    Enum.FontWeight.Bold,
-                    Enum.FontStyle.Normal
-                )
-            end)
+            tl.TextSize = 11
+            tl.Font = Enum.Font.RobotoMono
         end
     end
 end
@@ -5502,522 +5472,9 @@ jujuMisc.MISC_ESP_IMAGE_PRESET_IDS = MISC_ESP_IMAGE_PRESET_IDS
 end
 -- (Crown feature removed — ESP remains)
 
-do
--- ============================================================================
--- Bullet tracer engine (ported from juju lines 19429-20155)
--- Watches Workspace.Ignored for BULLET_RAYS + player's BulletBeams inventory
--- folder. When a local-player-owned shot is detected, spawns a custom Beam
--- (or 2D Drawing.Line) with user-chosen color, gradient, and lifetime.
--- ============================================================================
 
--- Custom signal implementation (juju uses signal.new())
-local TracerSignal = {}
-TracerSignal.__index = TracerSignal
-function TracerSignal.new()
-    return setmetatable({ _handlers = {} }, TracerSignal)
-end
-function TracerSignal:Fire(...)
-    for _, h in ipairs(self._handlers) do
-        pcall(h, ...)
-    end
-end
-function TracerSignal:Connect(fn)
-    self._handlers[#self._handlers + 1] = fn
-    return {
-        Disconnect = function()
-            for i, h in ipairs(self._handlers) do
-                if h == fn then table.remove(self._handlers, i); break end
-            end
-        end,
-    }
-end
+-- (Tracer engine removed — replaced by Beams tab)
 
-local jujuHoodCombat = {
-    installed = false,
-    bulletBeamsFolder = nil,
-    signals = { on_local_bullet_fired = TracerSignal.new() },
-    spawnCustomTracerBeam = nil,
-    connectLocalTracers = nil,
-    disconnectLocalTracers = nil,
-}
-
-local hoodState = {
-    tracerWatchReady = false,
-    ignoredBeamsConn = nil,
-    bulletBeamsConn = nil,
-    bulletBeamsDescConn = nil,
-    localTracerUntil = 0,
-}
-
-local function tracerDebugEnabled()
-    return flags.juju_bullet_tracer_debug == true
-end
-
-local function tracerPrint(...)
-    if tracerDebugEnabled() then print("[Tracer]", ...) end
-end
-
-local HOOD_TRACER_OBJECT_NAMES = {
-    BULLET_RAYS = true,
-    AIM_VIEWER_TRACER = true,
-}
-
-local function findFirstChildOfClass(object, className)
-    for _, child in ipairs(object:GetChildren()) do
-        if child:IsA(className) then return child end
-    end
-    return nil
-end
-
-local function hoodFindTracerBeam(object)
-    local beam = findFirstChildOfClass(object, "Beam")
-    if beam then return beam end
-    local gunBeam = object:FindFirstChild("GunBeam")
-    if gunBeam and gunBeam:IsA("Beam") then return gunBeam end
-    return object:FindFirstChildWhichIsA("Beam", true)
-end
-
-local function hoodObjectHasTracerBeam(object)
-    if not object then return false end
-    if object:IsA("Beam") or object.Name == "GunBeam" then return true end
-    return hoodFindTracerBeam(object) ~= nil
-end
-
-local function hoodIsTracerBulletObject(object)
-    if not object then return false end
-    if HOOD_TRACER_OBJECT_NAMES[object.Name] then return true end
-    return hoodObjectHasTracerBeam(object)
-end
-
-local function hoodResolveTracerCFrames(object, beam)
-    local startAtt = object:FindFirstChild("START_ATTACHMENT")
-    local endAtt = object:FindFirstChild("END_ATTACHMENT")
-    local startCf, endCf
-    if startAtt and startAtt:IsA("Attachment") then
-        startCf = startAtt.WorldCFrame
-    elseif beam and beam.Attachment0 then
-        startCf = beam.Attachment0.WorldCFrame
-    elseif object:IsA("BasePart") then
-        startCf = object.CFrame
-    else
-        local ok, pivot = pcall(function() return object:GetPivot() end)
-        startCf = ok and pivot or CFrame.new()
-    end
-    if endAtt and endAtt:IsA("Attachment") then
-        endCf = endAtt.WorldCFrame
-    elseif beam and beam.Attachment1 then
-        endCf = beam.Attachment1.WorldCFrame
-    else
-        endCf = startCf
-    end
-    return startCf, endCf
-end
-
-local function hoodGetBulletBeamsFolder()
-    local dataFolder = player:FindFirstChild("DataFolder")
-    if not dataFolder then
-        local ok, df = pcall(function() return player:WaitForChild("DataFolder", 20) end)
-        dataFolder = ok and df or nil
-    end
-    if not dataFolder then
-        dataFolder = Players:FindFirstChild("DataFolder")
-    end
-    if not dataFolder then return nil end
-    local inv = dataFolder:FindFirstChild("InventoryData")
-    if not inv then
-        local ok, iv = pcall(function() return dataFolder:WaitForChild("InventoryData", 20) end)
-        inv = ok and iv or nil
-    end
-    if not inv then return nil end
-    local beams = inv:FindFirstChild("BulletBeams")
-    if not beams then
-        local ok, bf = pcall(function() return inv:WaitForChild("BulletBeams", 20) end)
-        beams = ok and bf or nil
-    end
-    return beams
-end
-
-local function hoodTracerOwnerIsLocal(owner)
-    if owner == nil or owner == "" then return nil end
-    local ownerStr = tostring(owner)
-    return ownerStr == player.Name or ownerStr == player.DisplayName
-end
-
--- Forward-declared spawnCustomTracerBeam (assigned in the UI function below)
-local function hoodFireTracerSignal(object, beam, endCf)
-    local owner = object:GetAttribute("OwnerCharacter")
-    local ownerLocal = hoodTracerOwnerIsLocal(owner)
-    local recentLocalShot = tick() <= (hoodState.localTracerUntil or 0)
-    if ownerLocal == false or (ownerLocal == nil and not recentLocalShot) then
-        return
-    end
-    -- Always fire the signal — the handler decides whether to spawn
-    jujuHoodCombat.signals.on_local_bullet_fired:Fire(object, beam, endCf, ownerLocal == true or recentLocalShot)
-end
-
-local function hoodProcessTracerObject(object)
-    if not object or not object.Parent then return end
-    if not hoodIsTracerBulletObject(object) then return end
-    task.wait()
-    local beam = hoodFindTracerBeam(object)
-    if not beam or not beam.Attachment1 then return end
-    local _startCf, endCf = hoodResolveTracerCFrames(object, beam)
-    hoodFireTracerSignal(object, beam, endCf)
-end
-
-local function hoodOnBulletBeamsChildAdded(child)
-    if not hoodIsTracerBulletObject(child) then return end
-    tracerPrint("BulletBeams ChildAdded:", child and child:GetFullName())
-    hoodProcessTracerObject(child)
-end
-
-local function hoodFindTracerRoot(inst)
-    local node = inst
-    while node and node.Parent do
-        local parent = node.Parent
-        if parent.Name == "Ignored" or parent.Name == "BulletBeams" then
-            return node
-        end
-        node = parent
-    end
-    return inst
-end
-
-local function hoodOnIgnoredChildAdded(child)
-    if not child or child.Name ~= "BULLET_RAYS" then return end
-    tracerPrint("Ignored tracer ChildAdded:", child:GetFullName())
-    hoodProcessTracerObject(child)
-end
-
-local function hoodOnBulletBeamsDescendantAdded(desc)
-    if not desc:IsA("Beam") and desc.Name ~= "GunBeam" then return end
-    local root = hoodFindTracerRoot(desc)
-    if not root or not hoodIsTracerBulletObject(root) then return end
-    tracerPrint("Tracer DescendantAdded:", desc:GetFullName())
-    hoodProcessTracerObject(root)
-end
-
-local function hoodInstallTracerWatchers()
-    if hoodState.tracerWatchReady then return end
-    local ignored = Workspace:FindFirstChild("Ignored")
-    if not ignored then
-        tracerPrint("Tracer watch waiting for Workspace.Ignored")
-        task.delay(2, hoodInstallTracerWatchers)
-        return
-    end
-    hoodState.tracerWatchReady = true
-    jujuHoodCombat.bulletBeamsFolder = hoodGetBulletBeamsFolder()
-    hoodState.ignoredBeamsConn = ignored.ChildAdded:Connect(hoodOnIgnoredChildAdded)
-    for _, child in ipairs(ignored:GetChildren()) do
-        if child.Name == "BULLET_RAYS" then
-            task.spawn(hoodProcessTracerObject, child)
-        end
-    end
-    local bulletBeamsFolder = jujuHoodCombat.bulletBeamsFolder
-    if bulletBeamsFolder then
-        tracerPrint("Hood Customs tracer path:", bulletBeamsFolder:GetFullName())
-        hoodState.bulletBeamsConn = bulletBeamsFolder.ChildAdded:Connect(hoodOnBulletBeamsChildAdded)
-        hoodState.bulletBeamsDescConn = bulletBeamsFolder.DescendantAdded:Connect(hoodOnBulletBeamsDescendantAdded)
-    else
-        task.delay(3, function()
-            local folder = hoodGetBulletBeamsFolder()
-            if folder and not hoodState.bulletBeamsConn then
-                jujuHoodCombat.bulletBeamsFolder = folder
-                hoodState.bulletBeamsConn = folder.ChildAdded:Connect(hoodOnBulletBeamsChildAdded)
-                hoodState.bulletBeamsDescConn = folder.DescendantAdded:Connect(hoodOnBulletBeamsDescendantAdded)
-            end
-        end)
-    end
-end
-
--- MainEvent "ShootingRecoil" listener — sets localTracerUntil so ownerless beams count as local
-local function hoodInstallClientEvent()
-    local mainevent = ReplicatedStorage:FindFirstChild("MainEvent")
-    if not mainevent then return end
-    mainevent.OnClientEvent:Connect(function(...)
-        local args = { ... }
-        if type(args[1]) == "string" and args[1] == "ShootingRecoil" then
-            hoodState.localTracerUntil = tick() + 0.4
-        end
-    end)
-end
-
--- Beam templates (3 styles)
-local tracerBeamTemplates = {
-    laser = Instance.new("Beam"),
-    light = Instance.new("Beam"),
-    flow = Instance.new("Beam"),
-}
-do
-    local t = tracerBeamTemplates.laser
-    t.FaceCamera = true
-    t.TextureSpeed = 1.5
-    t.Width1 = 0.25
-    t.TextureLength = 2
-    t.Width0 = 0.25
-    t.LightEmission = 3
-    t.Brightness = 2.5
-    t.Texture = "rbxassetid://12781800668"
-    local t2 = tracerBeamTemplates.light
-    t2.FaceCamera = true
-    t2.TextureSpeed = 2
-    t2.Width1 = 0.25
-    t2.LightInfluence = 1
-    t2.LightEmission = 3
-    t2.Width0 = 0.25
-    t2.Segments = 1
-    t2.Texture = "http://www.roblox.com/asset/?id=2382169232"
-    t2.TextureLength = 15
-    t2.TextureMode = Enum.TextureMode.Wrap
-    local t3 = tracerBeamTemplates.flow
-    t3.FaceCamera = true
-    t3.TextureSpeed = 2.5
-    t3.Width1 = 0.2
-    t3.Width0 = 0.2
-    t3.LightEmission = 3
-    t3.Brightness = 5
-    t3.Texture = "rbxassetid://12788927812"
-end
-
-local function tracerStyleKey()
-    local pick = flags.juju_local_bullet_tracers_style
-    return type(pick) == "table" and pick[1] or pick or "laser"
-end
-
-local function tracerBeamTemplate()
-    return tracerBeamTemplates[tracerStyleKey()] or tracerBeamTemplates.laser
-end
-
-local function tracerColorSeq()
-    local c0 = flags.juju_local_bullet_tracers_color or Color3.fromRGB(133, 220, 255)
-    local c1 = flags.juju_local_bullet_tracers_gradient_color or Color3.fromRGB(241, 133, 255)
-    return ColorSequence.new({
-        ColorSequenceKeypoint.new(0, c0),
-        ColorSequenceKeypoint.new(1, c1),
-    })
-end
-
-local function tracerTransparencySeq()
-    local t0 = flags.juju_local_bullet_tracers_transparency or 0
-    local t1 = flags.juju_local_bullet_tracers_gradient_transparency or 0
-    return NumberSequence.new({
-        NumberSequenceKeypoint.new(0, t0),
-        NumberSequenceKeypoint.new(1, t1),
-    })
-end
-
-local function tracerBeamParent()
-    return Workspace:FindFirstChild("Ignored") or Workspace.Terrain
-end
-
-local function destroyTracerBeam(beam, attachment0, attachment1)
-    local elapsed = 0
-    local keypoints = beam.Transparency.Keypoints
-    local oldT0 = keypoints[1] and keypoints[1].Value or 0
-    local oldT1 = keypoints[2] and keypoints[2].Value or 0
-    local tweenFn = function(dt)
-        elapsed += dt
-        local value = TweenService:GetValue(elapsed / 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        beam.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, oldT0 + (1 - oldT0) * value),
-            NumberSequenceKeypoint.new(1, oldT1 + (1 - oldT1) * value),
-        })
-    end
-    heartbeat[#heartbeat + 1] = tweenFn
-    task.delay(0.2, function()
-        for i = 1, #heartbeat do
-            if heartbeat[i] == tweenFn then
-                table.remove(heartbeat, i)
-                break
-            end
-        end
-        if beam.Parent then beam:Destroy() end
-        if attachment0 and attachment0.Parent then attachment0:Destroy() end
-        if attachment1 and attachment1.Parent then attachment1:Destroy() end
-    end)
-end
-
-local function spawnCustomTracerBeam(startCf, endCf, destroyObject)
-    if not flags.juju_local_bullet_tracers then return false end
-    if typeof(startCf) ~= "CFrame" or typeof(endCf) ~= "CFrame" then return false end
-    tracerPrint("spawnCustomTracerBeam", startCf.Position, "->", endCf.Position)
-    local new_beam = tracerBeamTemplate():Clone()
-    new_beam.Color = tracerColorSeq()
-    new_beam.Transparency = tracerTransparencySeq()
-    local attachment0 = Instance.new("Attachment")
-    attachment0.Parent = Workspace.Terrain
-    attachment0.WorldCFrame = startCf
-    local attachment1 = Instance.new("Attachment")
-    attachment1.Parent = Workspace.Terrain
-    attachment1.WorldCFrame = endCf
-    new_beam.Attachment0 = attachment0
-    new_beam.Attachment1 = attachment1
-    new_beam.Parent = tracerBeamParent()
-    if destroyObject and destroyObject.Parent then
-        destroyObject:Destroy()
-    end
-    local life = flags.juju_local_bullet_tracers_lifetime or 0.8
-    task.delay(life, destroyTracerBeam, new_beam, attachment0, attachment1)
-    return true
-end
-jujuHoodCombat.spawnCustomTracerBeam = spawnCustomTracerBeam
-
-local function resolveTracerStartCFrame(object, beam, endCframe)
-    if not object then return endCframe end
-    local startAtt = object:FindFirstChild("START_ATTACHMENT")
-    if startAtt and startAtt:IsA("Attachment") then return startAtt.WorldCFrame end
-    if beam and beam.Attachment0 then return beam.Attachment0.WorldCFrame end
-    if object:IsA("BasePart") then return object.CFrame end
-    local ok, pivot = pcall(function() return object:GetPivot() end)
-    if ok then return pivot end
-    return endCframe
-end
-
-local function doBeamBulletTracer(object, beam, position, isLocal)
-    tracerPrint("doBeamBulletTracer", object and object.Name, isLocal)
-    local startCf = resolveTracerStartCFrame(object, beam, position)
-    spawnCustomTracerBeam(startCf, position, object)
-end
-
-local function doLineBulletTracer(object, beam, position, _isLocal)
-    if not Drawing then
-        if object and object.Parent then object:Destroy() end
-        return
-    end
-    local ok, lineFactory = pcall(function() return Drawing.new("Line") end)
-    if not ok or not lineFactory then
-        if object and object.Parent then object:Destroy() end
-        return
-    end
-    local transparency = 1 - (flags.juju_local_bullet_tracers_transparency or 0)
-    local outline = lineFactory
-    outline.Color = flags.juju_local_bullet_tracers_outline_color or Color3.fromRGB(15, 15, 15)
-    outline.Thickness = 3
-    outline.Transparency = 1 - (flags.juju_local_bullet_tracers_outline_transparency or 0)
-    outline.Visible = true
-    local line = Drawing.new("Line")
-    line.Color = flags.juju_local_bullet_tracers_color or Color3.fromRGB(133, 220, 255)
-    line.Thickness = 1
-    line.Transparency = transparency
-    line.Visible = true
-    local end_position = position.Position
-    local startCf = resolveTracerStartCFrame(object, beam, position)
-    local start_position = startCf.Position
-    local lifetime = flags.juju_local_bullet_tracers_lifetime or 0.8
-    local elapsed = 0
-    local newFn = function(dt)
-        if not line or not outline then return end
-        elapsed += dt
-        local cam = Workspace.CurrentCamera
-        if not cam then return end
-        local pos, onScreen = cam:WorldToViewportPoint(start_position)
-        local pos2, onScreen2 = cam:WorldToViewportPoint(end_position)
-        if not onScreen and not onScreen2 then
-            line.Visible = false
-            outline.Visible = false
-            return
-        end
-        line.Visible = true
-        outline.Visible = true
-        local size = cam.ViewportSize
-        local xFull, yFull = size.X, size.Y
-        local xHalf, yHalf = xFull / 2, yFull / 2
-        local from = Vector2.new(pos.X, pos.Y)
-        local to = Vector2.new(pos2.X, pos2.Y)
-        if pos.Z < 0 then
-            from = Vector2.new(
-                math.clamp(xHalf + (xHalf - pos.X), 0, xFull),
-                math.clamp(yHalf + (yHalf - pos.Y), 0, yFull)
-            )
-        end
-        if pos2.Z < 0 then
-            to = Vector2.new(
-                math.clamp(xHalf + (xHalf - pos2.X), 0, xFull),
-                math.clamp(yHalf + (yHalf - pos2.Y), 0, yFull)
-            )
-        end
-        if elapsed > lifetime then
-            local fadeT = elapsed - lifetime
-            local value = TweenService:GetValue(fadeT / 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local newTrn = transparency + (0 - transparency) * value
-            line.Transparency = newTrn
-            outline.Transparency = newTrn
-            from = from + (line.From - from) * value
-            line.From = from
-        else
-            line.From = from
-        end
-        line.To = to
-        local offset = (from - to).Unit
-        outline.From = from + offset
-        outline.To = to - offset
-    end
-    heartbeat[#heartbeat + 1] = newFn
-    if object and object.Parent then object:Destroy() end
-    task.delay(lifetime + 0.3, function()
-        for i = 1, #heartbeat do
-            if heartbeat[i] == newFn then
-                table.remove(heartbeat, i)
-                break
-            end
-        end
-        pcall(function() line:Remove() end)
-        pcall(function() outline:Remove() end)
-    end)
-end
-
-local tracerHandlerConn = nil
-local function tracerHandler()
-    local pick = flags.juju_local_bullet_tracers_type
-    local typ = type(pick) == "table" and pick[1] or pick or "beam"
-    if typ == "beam" then return doBeamBulletTracer end
-    return doLineBulletTracer
-end
-
-local function connectLocalTracers()
-    if tracerHandlerConn then
-        tracerHandlerConn:Disconnect()
-        tracerHandlerConn = nil
-    end
-    if not flags.juju_local_bullet_tracers then return end
-    local sig = jujuHoodCombat.signals.on_local_bullet_fired
-    if not sig then return end
-    local handler = tracerHandler()
-    tracerHandlerConn = sig:Connect(function(object, beam, cframe, isLocal)
-        tracerPrint("signal received", object and object.Name, isLocal)
-        if isLocal == false then return end
-        handler(object, beam, cframe, isLocal)
-    end)
-    tracerPrint("connected on_local_bullet_fired ->", flags.juju_local_bullet_tracers_type or "beam")
-end
-
-local function disconnectLocalTracers()
-    if tracerHandlerConn then
-        tracerHandlerConn:Disconnect()
-        tracerHandlerConn = nil
-    end
-end
-
-jujuHoodCombat.connectLocalTracers = connectLocalTracers
-jujuHoodCombat.disconnectLocalTracers = disconnectLocalTracers
-
--- Install watchers + MainEvent listener
-task.defer(function()
-    pcall(hoodInstallTracerWatchers)
-    pcall(hoodInstallClientEvent)
-    jujuHoodCombat.installed = true
-    if flags.juju_local_bullet_tracers then
-        connectLocalTracers()
-    end
-end)
-
-
-jujuMisc.connectLocalTracers = connectLocalTracers
-jujuMisc.disconnectLocalTracers = disconnectLocalTracers
-jujuMisc.jujuHoodCombat = jujuHoodCombat
-jujuMisc.spawnCustomTracerBeam = spawnCustomTracerBeam
-end
--- ============================================================================
 do
 -- Config engine — save/load .cfg files via executor's writefile/readfile
 -- ============================================================================
@@ -7335,6 +6792,105 @@ BeamSection:AddColorpicker({
 })
 
 end -- Beams tab
+
+-- ---------------------------------------------------------------------------
+-- Tab: Textures (map material changer)
+-- ---------------------------------------------------------------------------
+do
+local TextureTab = Window:CreateTab("Textures")
+
+local TexSection = TextureTab:CreateSection("Map Material", "Left")
+
+-- State
+local texOrigMaterials = {}
+local texOrigColors = {}
+
+-- Build material list from Enum.Material
+local texMaterialNames = {}
+for _, item in ipairs(Enum.Material:GetEnumItems()) do
+    texMaterialNames[#texMaterialNames + 1] = item.Name
+end
+table.sort(texMaterialNames)
+
+-- Material changer — applies the selected material to all BaseParts in workspace
+local function updateMaterial()
+    if flags.tex_material_enabled then
+        local matName = flags.tex_material_type
+        if type(matName) == "table" then matName = matName[1] end
+        local mat = Enum.Material[matName]
+        if not mat then return end
+
+        local partTypes = { "Part", "MeshPart", "UnionOperation", "WedgePart", "CornerWedgePart", "TrussPart", "SpawnLocation" }
+        local allowed = {}
+        for _, t in ipairs(partTypes) do allowed[t] = true end
+
+        for _, p in ipairs(Workspace:GetDescendants()) do
+            if p:IsA("BasePart") and not p:IsDescendantOf(Workspace.CurrentCamera) then
+                if allowed[p.ClassName] then
+                    texOrigMaterials[p] = texOrigMaterials[p] or p.Material
+                    pcall(function() p.Material = mat end)
+                    
+                    -- Apply color override if enabled
+                    if flags.tex_material_color_enabled then
+                        local col = flags.tex_material_color
+                        if col then
+                            texOrigColors[p] = texOrigColors[p] or p.Color
+                            pcall(function() p.Color = col end)
+                        end
+                    end
+                end
+            end
+        end
+    else
+        -- Restore materials
+        for p, m in pairs(texOrigMaterials) do
+            pcall(function()
+                if p.Parent then p.Material = m end
+            end)
+        end
+        texOrigMaterials = {}
+        
+        -- Restore colors
+        for p, c in pairs(texOrigColors) do
+            pcall(function()
+                if p.Parent then p.Color = c end
+            end)
+        end
+        texOrigColors = {}
+    end
+end
+
+TexSection:AddToggle({
+    Name = "Map material changer",
+    Default = false,
+    Flag = "tex_material_enabled",
+    Callback = function() updateMaterial() end,
+})
+TexSection:AddDropdown({
+    Name = "Material type",
+    Options = texMaterialNames,
+    Default = "Neon",
+    Flag = "tex_material_type",
+    Callback = function() if flags.tex_material_enabled then updateMaterial() end end,
+})
+TexSection:AddToggle({
+    Name = "Color override",
+    Default = false,
+    Flag = "tex_material_color_enabled",
+    Callback = function() if flags.tex_material_enabled then updateMaterial() end end,
+})
+TexSection:AddColorpicker({
+    Name = "Material color",
+    Default = Color3.fromRGB(255, 255, 255),
+    Flag = "tex_material_color",
+    Callback = function() if flags.tex_material_enabled and flags.tex_material_color_enabled then updateMaterial() end end,
+})
+TexSection:AddButton({
+    Name = "Apply",
+    Callback = function() updateMaterial() end,
+})
+
+end -- Textures tab
 
 -- ---------------------------------------------------------------------------
 -- Tab: Misc (library config, credits)
