@@ -7167,68 +7167,102 @@ EspImage:AddSlider({
 end -- ESP tab
 
 -- ---------------------------------------------------------------------------
--- Tab: Beams (in-game beam skin changer)
--- Three-pronged approach to force the selected beam to show:
--- 1. Sets Beam.Texture on all beams inside the player's tools (guns)
--- 2. Watches BULLET_RAYS objects in Workspace.Ignored and swaps the GunBeam
--- 3. Pre-populates DataFolder.InventoryData.BulletBeams with the selected model
+-- Tab: Beams (beam color changer)
+-- Two modes:
+-- 1. Preset beams (Blue/Green/Red) — writes hashes to DataFolder
+-- 2. Custom color — intercepts BULLET_RAYS and sets GunBeam color directly
 -- ---------------------------------------------------------------------------
 do
 local BeamsTab = Window:CreateTab("Beams")
 
 local BeamSection = BeamsTab:CreateSection("Bullet Beams", "Left")
 
--- Scan ReplicatedStorage.BulletBeams for available beam names
-local function scanGameBeams()
-    local beams = ReplicatedStorage:FindFirstChild("BulletBeams")
-    if not beams then return { "None" } end
-    local list = {}
-    for _, child in ipairs(beams:GetChildren()) do
-        list[#list + 1] = child.Name
+-- Only beams that actually work (change bullet color via DataFolder)
+local BEAM_DATA = {
+    ["Blue"]    = { inv = "dfa5cfef02d8b7adf5c2b249370409684d9012a6", eq = "dfa5cfef02d8b7adf5c2b249370409684d9012a6" },
+    ["Green"]   = { inv = "5d86e52435812f5107d1e3d1bb3f85682aabd841", eq = "5d86e52435812f5107d1e3d1bb3f85682aabd841" },
+    ["Red"]     = { inv = "d1ca0da6d5ce1a7f02b5c36f0ba1b7b29afcc00c", eq = "d1ca0da6d5ce1a7f02b5c36f0ba1b7b29afcc00c" },
+}
+
+local WEAPONS = { "[DoubleBarrel]", "[Revolver]", "[TacticalShotgun]", "[SMG]", "[Shotgun]", "[Silencer]" }
+
+local function buildInventoryJSON()
+    return '{"dfa5cfef02d8b7adf5c2b249370409684d9012a6":{"Name":"Blue"},"5d86e52435812f5107d1e3d1bb3f85682aabd841":{"Name":"Green"},"d1ca0da6d5ce1a7f02b5c36f0ba1b7b29afcc00c":{"Name":"Red"}}'
+end
+
+local function buildEquippedJSON(beamName)
+    local data = BEAM_DATA[beamName]
+    if not data then return nil end
+    local parts = {}
+    for _, weapon in ipairs(WEAPONS) do
+        parts[#parts + 1] = '"' .. weapon .. '":"' .. data.eq .. '"'
     end
-    table.sort(list)
-    if #list == 0 then list = { "None" } end
-    return list
+    return "{" .. table.concat(parts, ",") .. "}"
 end
 
-local function getSelectedBeam()
-    local name = flags.beam_skin_pick
-    if type(name) == "table" then name = name[1] end
-    if not name or name == "None" then return nil end
-    return name
+local function applyBeam(beamName)
+    if not beamName or beamName == "None" then return false end
+    if not BEAM_DATA[beamName] then return false end
+    local dataFolder = player:FindFirstChild("DataFolder")
+    if not dataFolder then return false end
+    local inv = dataFolder:FindFirstChild("InventoryData")
+    if inv then
+        local invBeams = inv:FindFirstChild("BulletBeams")
+        if not invBeams then
+            invBeams = Instance.new("StringValue")
+            invBeams.Name = "BulletBeams"
+            invBeams.Parent = inv
+        end
+        pcall(function() invBeams.Value = buildInventoryJSON() end)
+    end
+    local equippedJSON = buildEquippedJSON(beamName)
+    if not equippedJSON then return false end
+    local equippedValue = dataFolder:FindFirstChild("EquippedBulletBeams")
+    if not equippedValue then
+        equippedValue = Instance.new("StringValue")
+        equippedValue.Name = "EquippedBulletBeams"
+        equippedValue.Parent = dataFolder
+    end
+    pcall(function() equippedValue.Value = equippedJSON end)
+    return true
 end
 
--- 1. Set Beam.Texture on all beams inside a tool
-local function applyBulletsToTool(tool)
-    if not tool or not tool:IsA("Tool") then return end
-    local beamName = getSelectedBeam()
-    if not beamName then return end
-    for _, b in ipairs(tool:GetDescendants()) do
-        if b:IsA("Beam") then
-            pcall(function() b.Texture = beamName end)
+-- Custom color BULLET_RAYS interceptor
+local beamReapplyName = nil
+local beamConns = {}
+
+local function clearBeamConns()
+    for _, c in ipairs(beamConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    beamConns = {}
+end
+
+local function applyBeamWithWatch(beamName)
+    applyBeam(beamName)
+    clearBeamConns()
+    local dataFolder = player:FindFirstChild("DataFolder")
+    if not dataFolder then return end
+    local inv = dataFolder:FindFirstChild("InventoryData")
+    if inv then
+        local invBeams = inv:FindFirstChild("BulletBeams")
+        if invBeams and invBeams:IsA("StringValue") then
+            beamConns[#beamConns + 1] = invBeams.Changed:Connect(function()
+                task.wait(0.1)
+                applyBeam(beamName)
+            end)
         end
     end
-end
-
--- Apply to all tools in character + backpack
-local function applyBulletsAll()
-    local beamName = getSelectedBeam()
-    if not beamName then return end
-    local char = player.Character
-    if char then
-        for _, t in ipairs(char:GetChildren()) do
-            if t:IsA("Tool") then applyBulletsToTool(t) end
-        end
-    end
-    local bp = player:FindFirstChildOfClass("Backpack")
-    if bp then
-        for _, t in ipairs(bp:GetChildren()) do
-            if t:IsA("Tool") then applyBulletsToTool(t) end
-        end
+    local equippedValue = dataFolder:FindFirstChild("EquippedBulletBeams")
+    if equippedValue and equippedValue:IsA("StringValue") then
+        beamConns[#beamConns + 1] = equippedValue.Changed:Connect(function()
+            task.wait(0.1)
+            applyBeam(beamName)
+        end)
     end
 end
 
--- 2. Watch BULLET_RAYS in Workspace.Ignored and swap the GunBeam
+-- BULLET_RAYS watcher for custom color mode
 local bulletRaysConn = nil
 local function installBulletRaysWatcher()
     if bulletRaysConn then return end
@@ -7237,23 +7271,20 @@ local function installBulletRaysWatcher()
         task.delay(2, installBulletRaysWatcher)
         return
     end
-
     local function processBulletRays(raysObj)
         if not raysObj or raysObj.Name ~= "BULLET_RAYS" then return end
-        local beamName = getSelectedBeam()
-        if not beamName then return end
-
-        -- Find the GunBeam
+        local mode = flags.beam_mode
+        if type(mode) == "table" then mode = mode[1] end
+        if mode ~= "Custom" then return end
+        local customColor = flags.beam_custom_color
+        if not customColor then return end
         local gunBeam = raysObj:FindFirstChild("GunBeam")
         if not gunBeam or not gunBeam:IsA("Beam") then
             gunBeam = raysObj:FindFirstChildWhichIsA("Beam", true)
         end
         if not gunBeam then return end
-
-        -- Set the texture to the beam name
-        pcall(function() gunBeam.Texture = beamName end)
+        pcall(function() gunBeam.Color = ColorSequence.new(customColor) end)
     end
-
     bulletRaysConn = ignored.ChildAdded:Connect(processBulletRays)
     for _, child in ipairs(ignored:GetChildren()) do
         if child.Name == "BULLET_RAYS" then
@@ -7261,105 +7292,46 @@ local function installBulletRaysWatcher()
         end
     end
 end
+task.defer(installBulletRaysWatcher)
 
--- 3. Pre-populate DataFolder.InventoryData.BulletBeams with the selected model
-local function getPlayerBeamFolder()
-    local dataFolder = player:FindFirstChild("DataFolder")
-    if not dataFolder then return nil end
-    local inv = dataFolder:FindFirstChild("InventoryData")
-    if not inv then return nil end
-    return inv:FindFirstChild("BulletBeams")
-end
-
-local function equipBeamModel(beamName)
-    if not beamName or beamName == "None" then return false end
-    local source = ReplicatedStorage:FindFirstChild("BulletBeams")
-    if not source then return false end
-    local template = source:FindFirstChild(beamName)
-    if not template then return false end
-
-    local playerBeams = getPlayerBeamFolder()
-    if not playerBeams then return false end
-
-    -- Remove existing beam models
-    for _, child in ipairs(playerBeams:GetChildren()) do
-        if child:IsA("Model") then
-            pcall(function() child:Destroy() end)
-        end
+player.CharacterAdded:Connect(function()
+    task.wait(2)
+    if beamReapplyName and beamReapplyName ~= "None" then
+        applyBeamWithWatch(beamReapplyName)
     end
-
-    -- Clone the selected beam model
-    local clone = template:Clone()
-    clone.Parent = playerBeams
-    return true
-end
-
--- Watch for tools being added
-local beamProcessed = setmetatable({}, { __mode = "k" })
-local function onToolAdded(tool)
-    if beamProcessed[tool] then return end
-    beamProcessed[tool] = true
-    applyBulletsToTool(tool)
-end
-
--- Start all watchers
-task.defer(function()
-    -- Tool watcher
-    local bp = player:FindFirstChildOfClass("Backpack")
-    if bp then
-        bp.ChildAdded:Connect(function(child)
-            if child:IsA("Tool") then onToolAdded(child) end
-        end)
-        for _, t in ipairs(bp:GetChildren()) do
-            if t:IsA("Tool") then onToolAdded(t) end
-        end
-    end
-    if player.Character then
-        player.Character.ChildAdded:Connect(function(child)
-            if child:IsA("Tool") then onToolAdded(child) end
-        end)
-        for _, t in ipairs(player.Character:GetChildren()) do
-            if t:IsA("Tool") then onToolAdded(t) end
-        end
-    end
-    player.CharacterAdded:Connect(function(char)
-        task.wait(1)
-        char.ChildAdded:Connect(function(child)
-            if child:IsA("Tool") then onToolAdded(child) end
-        end)
-    end)
-
-    -- BULLET_RAYS watcher
-    installBulletRaysWatcher()
 end)
 
-local beamOptions = scanGameBeams()
+local beamOptions = { "None", "Blue", "Green", "Red", "Custom" }
+
 BeamSection:AddDropdown({
-    Name = "Beam skin",
+    Name = "Beam mode",
     Options = beamOptions,
     Default = "None",
-    Flag = "beam_skin_pick",
+    Flag = "beam_mode",
     Callback = function(val)
         local name = type(val) == "table" and val[1] or val
-        if name and name ~= "None" then
-            applyBulletsAll()
-            equipBeamModel(name)
+        if name == "Custom" then
+            -- Custom color mode — don't touch DataFolder, just intercept BULLET_RAYS
+            clearBeamConns()
+            beamReapplyName = nil
+            jujuNotify("Custom beam color — pick a color below", 1)
+        elseif name and name ~= "None" and BEAM_DATA[name] then
+            -- Preset mode — write to DataFolder
+            beamReapplyName = name
+            clearBeamConns()
+            applyBeamWithWatch(name)
             jujuNotify("Beam: " .. name, 1)
+        else
+            clearBeamConns()
+            beamReapplyName = nil
         end
     end,
 })
-BeamSection:AddButton({
-    Name = "Apply to all guns",
-    Callback = function()
-        local name = getSelectedBeam()
-        if name then
-            applyBulletsAll()
-            equipBeamModel(name)
-            jujuNotify("Beam applied: " .. name, 1)
-        else
-            jujuNotify("Select a beam first", 3)
-        end
-    end,
+
+BeamSection:AddColorpicker({
+    Name = "Custom beam color",
+    Default = Color3.fromRGB(255, 255, 255),
+    Flag = "beam_custom_color",
 })
 
 end -- Beams tab
