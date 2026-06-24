@@ -984,7 +984,7 @@ function Library:CreateWindow(opts)
                     Get = function() return state end,
                 }
                 if o.Flag then
-                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = el.Set }
+                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = function(v) el:Set(v) end }
                 end
                 return el
             end
@@ -1061,7 +1061,7 @@ function Library:CreateWindow(opts)
                     Get = function() return val end,
                 }
                 if o.Flag then
-                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = el.Set }
+                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = function(v) el:Set(v) end }
                 end
                 return el
             end
@@ -1174,7 +1174,7 @@ function Library:CreateWindow(opts)
                     end,
                 }
                 if o.Flag then
-                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = el.Set }
+                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = function(v) el:Set(v) end }
                 end
                 return el
             end
@@ -1222,7 +1222,7 @@ function Library:CreateWindow(opts)
                     Get = function() return box.Text end,
                 }
                 if o.Flag then
-                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = el.Set }
+                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = function(v) el:Set(v) end }
                 end
                 return el
             end
@@ -1299,33 +1299,37 @@ function Library:CreateWindow(opts)
                     Text = "", Parent = row, ZIndex = 15,
                 })
                 corner(sw, 3); stroke(sw, Library.Theme.Border, 1)
+
+                -- Popup parented to Root (not sw) so it's never clipped by ScrollingFrames
                 local pop = new("Frame", {
                     BackgroundColor3 = Library.Theme.Foreground,
                     BorderSizePixel = 0,
-                    AnchorPoint = Vector2.new(1, 0),
-                    Position = UDim2.new(1, 0, 1, 4),
-                    Size = UDim2.fromOffset(180, 160),
+                    Size = UDim2.fromOffset(200, 180),
                     Visible = false,
-                    Parent = sw, ZIndex = 40,
+                    Parent = Root, ZIndex = 100,
                 })
-                corner(pop, 4); stroke(pop, Library.Theme.Border, 1)
+                corner(pop, 6); stroke(pop, Library.Theme.Border, 1)
+
+                -- SV square: hue background + white-to-transparent (saturation) + transparent-to-black (value)
                 local sv = new("Frame", {
-                    BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+                    BackgroundColor3 = Color3.fromHSV(0, 1, 1),
                     BorderSizePixel = 0,
                     Position = UDim2.fromOffset(8, 8),
-                    Size = UDim2.fromOffset(140, 110),
-                    Parent = pop, ZIndex = 41,
+                    Size = UDim2.fromOffset(160, 130),
+                    Parent = pop, ZIndex = 101,
                 })
-                new("UIGradient", {
-                    Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(255,255,255)),
+                -- Saturation gradient: white (left) → transparent (right)
+                local satGrad = new("UIGradient", {
+                    Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 255, 255)),
                     Transparency = NumberSequence.new(0, 1),
                     Parent = sv,
                 })
+                -- Value gradient: transparent (top) → black (bottom)
                 local valOverlay = new("Frame", {
                     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
                     BorderSizePixel = 0,
                     Size = UDim2.fromScale(1, 1),
-                    Parent = sv, ZIndex = 42,
+                    Parent = sv, ZIndex = 102,
                 })
                 new("UIGradient", {
                     Rotation = 90,
@@ -1335,15 +1339,16 @@ function Library:CreateWindow(opts)
                 local cur = new("Frame", {
                     BackgroundTransparency = 1, BorderSizePixel = 0,
                     Size = UDim2.fromOffset(6, 6),
-                    Parent = sv, ZIndex = 43,
+                    Parent = sv, ZIndex = 103,
                 })
                 stroke(cur, Color3.fromRGB(255, 255, 255), 1)
+                -- Hue bar
                 local hueBar = new("Frame", {
                     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                     BorderSizePixel = 0,
-                    Position = UDim2.fromOffset(154, 8),
-                    Size = UDim2.fromOffset(16, 110),
-                    Parent = pop, ZIndex = 41,
+                    Position = UDim2.fromOffset(172, 8),
+                    Size = UDim2.fromOffset(18, 130),
+                    Parent = pop, ZIndex = 101,
                 })
                 new("UIGradient", {
                     Rotation = 90,
@@ -1362,18 +1367,18 @@ function Library:CreateWindow(opts)
                     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                     BorderSizePixel = 0,
                     Position = UDim2.fromOffset(0, 0),
-                    Size = UDim2.new(1, 0, 0, 2),
-                    Parent = hueBar, ZIndex = 43,
+                    Size = UDim2.new(1, 0, 0, 3),
+                    Parent = hueBar, ZIndex = 103,
                 })
                 local rgbLbl = new("TextLabel", {
                     BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(8, 122),
-                    Size = UDim2.fromOffset(160, 30),
+                    Position = UDim2.fromOffset(8, 144),
+                    Size = UDim2.fromOffset(180, 28),
                     Font = Library.MonoFont, Text = "",
                     TextSize = Library.TextSize - 1,
                     TextColor3 = Library.Theme.SubText,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = pop, ZIndex = 42,
+                    Parent = pop, ZIndex = 101,
                 })
                 local h, sa, va = Color3.toHSV(color)
                 local function upd(notify)
@@ -1411,10 +1416,29 @@ function Library:CreateWindow(opts)
                         h = ry; upd(true)
                     end
                 end)
-                sw.MouseButton1Click:Connect(function() pop.Visible = not pop.Visible end)
+                local function repositionPop()
+                    local swPos = sw.AbsolutePosition
+                    local swSize = sw.AbsoluteSize
+                    pop.Position = UDim2.fromOffset(swPos.X + swSize.X - 200, swPos.Y + swSize.Y + 4)
+                end
+                sw.MouseButton1Click:Connect(function()
+                    pop.Visible = not pop.Visible
+                    if pop.Visible then repositionPop() end
+                end)
+                -- Close on outside click
+                UserInputService.InputBegan:Connect(function(input)
+                    if pop.Visible and input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local m = UserInputService:GetMouseLocation()
+                        local pp = pop.AbsolutePosition
+                        local ps = pop.AbsoluteSize
+                        if m.X < pp.X or m.X > pp.X + ps.X or m.Y < pp.Y or m.Y > pp.Y + ps.Y then
+                            pop.Visible = false
+                        end
+                    end
+                end)
                 local el = { Set = function(_, c) h, sa, va = Color3.toHSV(c); upd(true) end, Get = function() return color end }
                 if o.Flag then
-                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = el.Set }
+                    Library._configElements[#Library._configElements + 1] = { flag = o.Flag, set = function(v) el:Set(v) end }
                 end
                 return el
             end
@@ -1526,6 +1550,7 @@ acLabSilentAimState = nil
 rageState = nil
 
 -- ---------------------------------------------------------------------------
+do
 -- miscState: per-feature connection/handle refs (ported from juju line 14535)
 -- ---------------------------------------------------------------------------
 miscState = {
@@ -1555,8 +1580,6 @@ miscState = {
     autoGunConn = nil,
     espHbAcc = 0,
     espRainbowHue = 0,
-    crownConn = nil,
-    crownDraw = nil,
 }
 
 local function miscHumanoid()
@@ -2144,6 +2167,21 @@ end
 player.CharacterAdded:Connect(jujuJumpHookCharacter)
 
 -- ---------------------------------------------------------------------------
+
+jujuMisc.miscHumanoid = miscHumanoid
+jujuMisc.miscHrp = miscHrp
+jujuMisc.miscApplyWalkJump = miscApplyWalkJump
+jujuMisc.miscSetupAntiSit = miscSetupAntiSit
+jujuMisc.miscClearAntiSit = miscClearAntiSit
+jujuMisc.miscSetupAntiTrip = miscSetupAntiTrip
+jujuMisc.miscClearAntiTrip = miscClearAntiTrip
+jujuMisc.miscNoclipParts = miscNoclipParts
+jujuMisc.miscNoclipRestore = miscNoclipRestore
+jujuMisc.miscFlyStop = miscFlyStop
+jujuMisc.jujuJumpHookCharacter = jujuJumpHookCharacter
+jujuMisc.miscOrbitRestorePosition = miscOrbitRestorePosition
+jujuMisc.miscOrbitCaptureStart = miscOrbitCaptureStart
+end
 -- Rage slowdown hook + state (ported from juju lines 15666-15696)
 -- ---------------------------------------------------------------------------
 rageState = {
@@ -2414,15 +2452,6 @@ do
         if not model or not part then
             return false
         end
-        if flags.ac_lab_assist_check_chat and UserInputService:GetFocusedTextBox() then
-            return false
-        end
-        if flags.ac_lab_assist_check_tool then
-            local ch = player.Character
-            if not ch or not ch:FindFirstChildWhichIsA("Tool") then
-                return false
-            end
-        end
         local plr = Players:GetPlayerFromCharacter(model)
         if plr == player then
             return false
@@ -2447,25 +2476,6 @@ do
                 end
             end
         end
-        if not flags.ac_lab_assist_unlock_knocked and knocked then
-            local h = model:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 then
-                return false
-            end
-        end
-        if flags.ac_lab_assist_check_grab then
-            local be = model:FindFirstChild("BodyEffects")
-            local grab = be and be:FindFirstChild("Grabbed")
-            if grab and grab.Value then
-                return false
-            end
-        end
-        if flags.ac_lab_assist_check_reload then
-            local hum = model:FindFirstChildOfClass("Humanoid")
-            if hum and hum:GetState() == Enum.HumanoidStateType.Reloading then
-                return false
-            end
-        end
         if flags.ac_lab_assist_check_wall and cam then
             local rp = RaycastParams.new()
             rp.FilterType = Enum.RaycastFilterType.Exclude
@@ -2479,9 +2489,6 @@ do
             if hit and not hit.Instance:IsDescendantOf(model) then
                 return false
             end
-        end
-        if flags.ac_lab_assist_anti_floor and part.Position.Y < -50 then
-            return false
         end
         return true
     end
@@ -3369,6 +3376,12 @@ do
         if name == "MouseButton2" then
             return Enum.UserInputType.MouseButton2
         end
+        if name == "MouseButton3" then
+            return Enum.UserInputType.MouseButton3
+        end
+        if name == "MouseButton4" then
+            return Enum.UserInputType.MouseButton4
+        end
         local keyMap = {
             E = Enum.KeyCode.E,
             Q = Enum.KeyCode.Q,
@@ -3383,9 +3396,17 @@ do
         return keyMap[name]
     end
 
+    -- Toggle state for camera assist aim key
+    acLabState.aimToggleActive = false
+
     local function acLabAssistAimKeyHeld()
+        local mode = acLabFlagOne("ac_lab_assist_mode", "Hold")
+        if mode == "Toggle" then
+            return acLabState.aimToggleActive
+        end
         local keyName = acLabFlagOne("ac_lab_assist_aim_key", "MouseButton2")
-        if keyName == "MouseButton1" or keyName == "MouseButton2" then
+        if keyName == "MouseButton1" or keyName == "MouseButton2"
+        or keyName == "MouseButton3" or keyName == "MouseButton4" then
             return UserInputService:IsMouseButtonPressed(acLabAssistKeyEnum(keyName))
         end
         local code = acLabAssistKeyEnum(keyName)
@@ -3531,7 +3552,6 @@ do
         return flags.ac_lab_legit_smooth
             or flags.ac_lab_assist_fov_enable
             or flags.ac_lab_assist_info_enable
-            or flags.ac_lab_assist_spin_enable
     end
 
     local function acLabSmoothAssistStep()
@@ -3542,18 +3562,6 @@ do
 
         acLabAssistDrawOverlays(cam)
 
-        if flags.ac_lab_assist_spin_enable and acLabAssistSpinKeyHeld() then
-            local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-            if hum and hrp then
-                hum.AutoRotate = false
-                local deg = math.rad(flags.ac_lab_assist_spin_degrees or 180)
-                local spd = (flags.ac_lab_assist_spin_speed or 12) * 0.02
-                acLabState.assistDraw.spinYaw = (acLabState.assistDraw.spinYaw + deg * spd) % (math.pi * 2)
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, acLabState.assistDraw.spinYaw, 0)
-            end
-        end
-
         if not flags.ac_lab_legit_smooth then
             return
         end
@@ -3563,6 +3571,10 @@ do
         end
         if not acLabAssistAimKeyHeld() then
             acLabStickyClear()
+            return
+        end
+        -- Cooldown after Unlock On Knock triggers — don't pick a new target
+        if acLabState.unlockCooldown and tick() < acLabState.unlockCooldown then
             return
         end
 
@@ -3591,6 +3603,19 @@ do
             end
             if not aimPos or not aimPart then
                 return
+            end
+            -- Unlock On Knock: if enabled, release the target when its health drops below 1
+            -- and set a cooldown so we don't immediately lock onto a new target
+            if flags.ac_lab_assist_unlock_knocked then
+                local targetModel = aimPart:FindFirstAncestorOfClass("Model")
+                if targetModel then
+                    local h = targetModel:FindFirstChildOfClass("Humanoid")
+                    if h and h.Health < 1 then
+                        acLabStickyClear()
+                        acLabState.unlockCooldown = tick() + 1.0
+                        return
+                    end
+                end
             end
             aimPos = acLabApplyAssistShake(acLabApplyAssistPrediction(aimPos, aimPart, cam))
 
@@ -3941,9 +3966,29 @@ do
     jujuAcLab.acLabSilentClearLock = acLabSilentClearLock
     jujuAcLab.acLabStickyClear = acLabStickyClear
     jujuAcLab.acLabSilentPick = acLabSilentPick
+
+    -- Aim key toggle handler (for Toggle mode)
+    UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        local mode = acLabFlagOne("ac_lab_assist_mode", "Hold")
+        if mode ~= "Toggle" then return end
+        local keyName = acLabFlagOne("ac_lab_assist_aim_key", "MouseButton2")
+        local matched = false
+        if keyName == "MouseButton1" or keyName == "MouseButton2"
+        or keyName == "MouseButton3" or keyName == "MouseButton4" then
+            if input.UserInputType == acLabAssistKeyEnum(keyName) then matched = true end
+        else
+            local code = acLabAssistKeyEnum(keyName)
+            if code and input.KeyCode == code then matched = true end
+        end
+        if matched then
+            acLabState.aimToggleActive = not acLabState.aimToggleActive
+        end
+    end)
 end
 -- end of AC lab core
 
+do
 -- ---------------------------------------------------------------------------
 -- Skybox engine (ported from juju lines 10770-11065).
 -- Provides: skyPresets, applySkyPresetRow, jujuMisc.applySky, sky-spin heartbeat.
@@ -4161,6 +4206,11 @@ heartbeat[#heartbeat + 1] = function(dt)
     end
 end
 
+do
+
+jujuMisc.applySkyPresetRow = applySkyPresetRow
+jujuMisc.skyOptionNames = skyOptionNames
+end
 -- ---------------------------------------------------------------------------
 -- World time engine (ported from juju lines 11067-11130).
 -- Override Lighting.ClockTime each heartbeat when toggle is on.
@@ -4186,6 +4236,11 @@ heartbeat[#heartbeat + 1] = function()
     end
 end
 
+do
+
+jujuMisc.worldTimeState = worldTimeState
+jujuMisc.applyWorldTimeFromFlags = applyWorldTimeFromFlags
+end
 -- ---------------------------------------------------------------------------
 -- Atmosphere engine (ported from juju lines 12139-12235).
 -- Creates a client-side Atmosphere instance under Lighting with custom
@@ -4211,111 +4266,360 @@ local function refreshClientAtmosphere()
 end
 jujuMisc.refreshAtmosphere = refreshClientAtmosphere
 
--- ---------------------------------------------------------------------------
--- Gun meshes engine (ported from juju lines 22116-22235).
--- Swaps MeshId on gun handle parts. Backs up originals for restore.
--- ---------------------------------------------------------------------------
-local meshRestores = {}
-local MESH_PRESETS = {
-    ["DB (superfixedawp2)"] = {
-        objPath = "c:/Users/juju/AppData/Local/FleasionNT/FleasionNT/Exports/converted/Mesh/superfixedawp2.obj",
-        gunNames = { "db", "double", "doublebarrel", "double-barrel", "[double barrel]" },
-    },
-}
-local function normalizeGunName(s)
-    return string.lower(tostring(s):gsub("%s+", ""):gsub("[%[%]]", ""))
+
+jujuMisc.refreshClientAtmosphere = refreshClientAtmosphere
+jujuMisc.atmoInstance = atmoInstance
 end
-local function toolMatchesPreset(tool, preset)
-    local n = normalizeGunName(tool.Name)
-    for _, g in ipairs(preset.gunNames) do
-        if string.find(n, normalizeGunName(g), 1, true) then
-            return true
+do
+-- ---------------------------------------------------------------------------
+-- World snow engine (ported from juju lines 11738-12137).
+-- Volumetric workspace snow — particle grid above the map, wind, indoor hide.
+-- ---------------------------------------------------------------------------
+local WX_SNOW_TEXTURE = "http://www.roblox.com/asset/?id=99851851"
+local WX_SNOW_SOUND = "rbxassetid://9125402735"
+local WX_SNOW_FLAKE_SIZE = 1.15
+local WX_SNOW_GRID_SPACING = 95
+local WX_SNOW_GRID_PAD = 60
+local WX_SNOW_HEIGHT_ABOVE_MAP = 75
+local WX_SNOW_MAX_CELLS = 81
+local WX_SNOW_INDOOR_CEILING = 42
+
+local wxSnow = {
+    active = false, folder = nil, cells = {}, emitters = {}, sound = nil,
+    indoors = false, windPhase = 0, conns = {}, mapBounds = nil,
+}
+
+local function wxSnowEnsureFolder()
+    local f = Workspace:FindFirstChild("JujuWorldSnowFX")
+    if not f then
+        f = Instance.new("Folder")
+        f.Name = "JujuWorldSnowFX"
+        f.Parent = Workspace
+    end
+    wxSnow.folder = f
+    return f
+end
+
+local function wxSnowScalar(flagName, defaultPct)
+    local v = tonumber(flags[flagName])
+    if not v then return (defaultPct or 50) / 100 end
+    return math.clamp(v / 100, 0.01, 1.5)
+end
+
+local function wxSnowColor3()
+    local c = flags.wx_world_snow_color
+    if typeof(c) == "Color3" then return c end
+    return Color3.fromRGB(255, 255, 255)
+end
+
+local function wxSnowFallSpeed()
+    return 55 + wxSnowScalar("wx_world_snow_speed", 80) * 145
+end
+
+local function wxSnowAmount()
+    local v = tonumber(flags.wx_world_snow_rate)
+    if not v then return 1.15 end
+    return math.clamp(v / 100, 0, 2)
+end
+
+local function wxSnowPerCellRate()
+    local a = wxSnowAmount()
+    if a <= 0 then return 0 end
+    return math.floor(32 + a * 150)
+end
+
+local function wxSnowMakeEmitter()
+    local pe = Instance.new("ParticleEmitter")
+    pe.Name = "SnowDot"
+    pe.Texture = WX_SNOW_TEXTURE
+    pe.EmissionDirection = Enum.NormalId.Bottom
+    pe.LightEmission = 0.82
+    pe.LightInfluence = 0.35
+    pe.Brightness = 2.1
+    pe.Drag = 0.35
+    pe.SpreadAngle = Vector2.new(18, 18)
+    pe.Rotation = NumberRange.new(0, 360)
+    pe.RotSpeed = NumberRange.new(-20, 20)
+    pe.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, WX_SNOW_FLAKE_SIZE * 0.55),
+        NumberSequenceKeypoint.new(0.45, WX_SNOW_FLAKE_SIZE),
+        NumberSequenceKeypoint.new(1, WX_SNOW_FLAKE_SIZE * 0.35),
+    })
+    pe.Speed = NumberRange.new(wxSnowFallSpeed())
+    pe.Lifetime = NumberRange.new(2.5, 4.5)
+    pe.Rate = wxSnowPerCellRate()
+    pe.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.18),
+        NumberSequenceKeypoint.new(0.08, 0),
+        NumberSequenceKeypoint.new(0.85, 0.06),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    pe.Orientation = Enum.ParticleOrientation.FacingCamera
+    return pe
+end
+
+local function wxSnowApplyEmitterSettings()
+    local fall = wxSnowFallSpeed()
+    local col = ColorSequence.new(wxSnowColor3())
+    local rate = wxSnowPerCellRate()
+    local enabled = rate > 0
+    for _, pe in ipairs(wxSnow.emitters) do
+        if pe and pe.Parent then
+            pe.Color = col
+            pe.Rate = rate
+            pe.Enabled = enabled
+            pe.Speed = NumberRange.new(fall * 0.92, fall * 1.08)
         end
     end
-    return false
 end
-local function applyMeshToPart(part, meshId)
-    if not part or meshId == "" then
-        return
+
+local function wxSnowMeasureMap()
+    local root = Workspace:FindFirstChild("FFA_MAP") or Workspace:FindFirstChild("Map") or Workspace
+    local minX, minZ = math.huge, math.huge
+    local maxX, maxZ, maxY = -math.huge, -math.huge, -math.huge
+    local found = false
+    for _, desc in ipairs(root:GetDescendants()) do
+        if desc:IsA("BasePart") then
+            found = true
+            local p = desc.Position
+            local h = desc.Size * 0.5
+            minX = math.min(minX, p.X - h.X)
+            maxX = math.max(maxX, p.X + h.X)
+            minZ = math.min(minZ, p.Z - h.Z)
+            maxZ = math.max(maxZ, p.Z + h.Z)
+            maxY = math.max(maxY, p.Y + h.Y)
+        end
     end
-    if not meshRestores[part] then
-        meshRestores[part] = {}
-        if part:IsA("MeshPart") then
-            meshRestores[part].kind = "MeshPart"
-            meshRestores[part].MeshId = part.MeshId
-            meshRestores[part].TextureID = part.TextureID
-        elseif part:IsA("BasePart") then
-            local sm = part:FindFirstChildOfClass("SpecialMesh")
-            if sm then
-                meshRestores[part].kind = "SpecialMesh"
-                meshRestores[part].inst = sm
-                meshRestores[part].MeshId = sm.MeshId
-                meshRestores[part].TextureId = sm.TextureId
+    if not found then
+        local cam = Workspace.CurrentCamera
+        local p = cam and cam.CFrame.Position or Vector3.zero
+        return { minX = p.X - 220, maxX = p.X + 220, minZ = p.Z - 220, maxZ = p.Z + 220, snowY = p.Y + 90 }
+    end
+    return {
+        minX = minX - WX_SNOW_GRID_PAD, maxX = maxX + WX_SNOW_GRID_PAD,
+        minZ = minZ - WX_SNOW_GRID_PAD, maxZ = maxZ + WX_SNOW_GRID_PAD,
+        snowY = maxY + WX_SNOW_HEIGHT_ABOVE_MAP,
+    }
+end
+
+local function wxSnowSetAmbient(on)
+    if on and flags.wx_world_snow_ambient ~= false then
+        if not wxSnow.sound or not wxSnow.sound.Parent then
+            wxSnow.sound = Instance.new("Sound")
+            wxSnow.sound.Name = "JujuWxSnowWind"
+            wxSnow.sound.SoundId = WX_SNOW_SOUND
+            wxSnow.sound.Looped = true
+            wxSnow.sound.Volume = 0.12
+            wxSnow.sound.Parent = game:GetService("SoundService")
+        end
+        pcall(function() wxSnow.sound:Play() end)
+    elseif wxSnow.sound then
+        pcall(function() wxSnow.sound:Stop() end)
+    end
+end
+
+local function wxSnowRayParams()
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    local ignore = { wxSnow.folder, player.Character }
+    for _, cell in ipairs(wxSnow.cells) do
+        if cell and cell.Parent then ignore[#ignore + 1] = cell end
+    end
+    params.FilterDescendantsInstances = ignore
+    return params
+end
+
+local function wxSnowDetectIndoors(origin)
+    if flags.wx_world_snow_indoor_hide == false then return false end
+    local params = wxSnowRayParams()
+    local upHit = Workspace:Raycast(origin, Vector3.new(0, WX_SNOW_INDOOR_CEILING, 0), params)
+    return upHit ~= nil and upHit.Instance ~= nil
+end
+
+local function wxSnowSetEnabledVisuals(on)
+    for _, pe in ipairs(wxSnow.emitters) do
+        if pe and pe.Parent then pe.Enabled = on end
+    end
+end
+
+local function wxSnowBuildMapField()
+    wxSnowEnsureFolder()
+    if #wxSnow.cells > 0 then return end
+    local bounds = wxSnowMeasureMap()
+    wxSnow.mapBounds = bounds
+    local spanX = bounds.maxX - bounds.minX
+    local spanZ = bounds.maxZ - bounds.minZ
+    local cols = math.max(1, math.ceil(spanX / WX_SNOW_GRID_SPACING))
+    local rows = math.max(1, math.ceil(spanZ / WX_SNOW_GRID_SPACING))
+    while cols * rows > WX_SNOW_MAX_CELLS do
+        if cols >= rows and cols > 1 then cols -= 1
+        elseif rows > 1 then rows -= 1
+        else break end
+    end
+    local stepX = spanX / cols
+    local stepZ = spanZ / rows
+    local cellSize = Vector3.new(math.max(stepX, 40), 4, math.max(stepZ, 40))
+    wxSnow.cells = {}
+    wxSnow.emitters = {}
+    for row = 0, rows - 1 do
+        for col = 0, cols - 1 do
+            local x = bounds.minX + stepX * (col + 0.5)
+            local z = bounds.minZ + stepZ * (row + 0.5)
+            local part = Instance.new("Part")
+            part.Name = "JujuWxSnowCell"
+            part.Anchored = true
+            part.CanCollide = false
+            part.CanQuery = false
+            part.CanTouch = false
+            part.CastShadow = false
+            part.Transparency = 1
+            part.Size = cellSize
+            part.CFrame = CFrame.new(x, bounds.snowY, z)
+            part.Parent = wxSnow.folder
+            local pe = wxSnowMakeEmitter()
+            pe.Parent = part
+            wxSnow.cells[#wxSnow.cells + 1] = part
+            wxSnow.emitters[#wxSnow.emitters + 1] = pe
+        end
+    end
+    wxSnowApplyEmitterSettings()
+end
+
+local function wxSnowDisconnect()
+    for _, conn in ipairs(wxSnow.conns) do pcall(function() conn:Disconnect() end) end
+    wxSnow.conns = {}
+end
+
+local function wxSnowDestroyFx()
+    wxSnowDisconnect()
+    wxSnowSetAmbient(false)
+    for _, pe in ipairs(wxSnow.emitters) do if pe and pe.Parent then pe:Destroy() end end
+    wxSnow.emitters = {}
+    for _, cell in ipairs(wxSnow.cells) do if cell and cell.Parent then cell:Destroy() end end
+    wxSnow.cells = {}
+    if wxSnow.folder and wxSnow.folder.Parent then wxSnow.folder:Destroy() end
+    wxSnow.folder = nil
+    wxSnow.mapBounds = nil
+    wxSnow.active = false
+    wxSnow.indoors = false
+    wxSnow.windPhase = 0
+end
+
+local function wxSnowStep(dt)
+    if not wxSnow.active or #wxSnow.emitters == 0 then return end
+    dt = dt or 0
+    wxSnow.windPhase += dt
+    local windAmt = wxSnowScalar("wx_world_snow_wind", 40)
+    local windX = math.sin(wxSnow.windPhase * 0.35) * (1.5 + windAmt * 5)
+    local windZ = math.cos(wxSnow.windPhase * 0.27) * (1 + windAmt * 4)
+    local accel = Vector3.new(windX, -6, windZ)
+    local cam = Workspace.CurrentCamera
+    local rootPos = cam and cam.CFrame.Position or Vector3.zero
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then rootPos = hrp.Position end
+    wxSnow.indoors = wxSnowDetectIndoors(rootPos + Vector3.new(0, 2, 0))
+    wxSnowSetEnabledVisuals(not wxSnow.indoors)
+    for _, pe in ipairs(wxSnow.emitters) do
+        if pe and pe.Parent then pe.Acceleration = accel end
+    end
+end
+
+local function wxSnowEnable()
+    wxSnowDestroyFx()
+    wxSnowBuildMapField()
+    wxSnow.active = true
+    wxSnowSetAmbient(true)
+    wxSnowSetEnabledVisuals(true)
+    wxSnow.conns[#wxSnow.conns + 1] = RunService.RenderStepped:Connect(wxSnowStep)
+    wxSnowStep(0)
+    return true
+end
+
+local function wxSnowDisable()
+    wxSnowDestroyFx()
+end
+
+heartbeat[#heartbeat + 1] = function()
+    if not flags.wx_world_snow and wxSnow.active then
+        wxSnowDisable()
+    end
+end
+
+
+jujuMisc.wxSnowEnable = wxSnowEnable
+jujuMisc.wxSnowDisable = wxSnowDisable
+jujuMisc.wxSnowApplyEmitterSettings = wxSnowApplyEmitterSettings
+jujuMisc.wxSnowStep = wxSnowStep
+jujuMisc.wxSnowSetAmbient = wxSnowSetAmbient
+jujuMisc.wxSnow = wxSnow
+end
+-- (Mesh changer feature removed)
+
+-- Forward declarations so UI can assign to these
+local aspectMultiplier, aspectLastTween, aspectRatioApplyLoop
+
+do
+-- ---------------------------------------------------------------------------
+-- Aspect ratio engine (ported from juju lines 16568-16647).
+-- Stretches the camera vertically by tweening a CFrame multiplier.
+-- ---------------------------------------------------------------------------
+aspectMultiplier = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+aspectLastTween = 1
+local aspectTweenFn = nil
+
+local function aspectRatioApplyLoopFn()
+    RunService.RenderStepped:Wait()
+    local cam = Workspace.CurrentCamera
+    if cam then
+        cam.CFrame = cam.CFrame * aspectMultiplier
+    end
+end
+aspectRatioApplyLoop = aspectRatioApplyLoopFn
+
+local function aspectRatioTweenTo(newValue, force)
+    if aspectTweenFn then
+        for i = 1, #heartbeat do
+            if heartbeat[i] == aspectTweenFn then
+                table.remove(heartbeat, i)
+                break
             end
         end
     end
-    pcall(function()
-        if part:IsA("MeshPart") then
-            part.MeshId = meshId
-        else
-            local sm = part:FindFirstChildOfClass("SpecialMesh") or Instance.new("SpecialMesh", part)
-            sm.MeshType = Enum.MeshType.FileMesh
-            sm.MeshId = meshId
+    local elapsed = 0
+    local oldValue = aspectLastTween
+    local tweenFn = function(dt)
+        elapsed += dt
+        aspectLastTween = oldValue + (newValue - oldValue)
+            * TweenService:GetValue(elapsed / 0.16, Enum.EasingStyle.Circular, Enum.EasingDirection.Out)
+        aspectMultiplier = CFrame.new(0, 0, 0, 1, 0, 0, 0, aspectLastTween, 0, 0, 0, 1)
+        if force then
+            RunService.RenderStepped:Wait()
+            local cam = Workspace.CurrentCamera
+            if cam then cam.CFrame = cam.CFrame * aspectMultiplier end
+        end
+    end
+    aspectTweenFn = tweenFn
+    aspectMultiplier = CFrame.new(0, 0, 0, 1, 0, 0, 0, aspectLastTween, 0, 0, 0, 1)
+    heartbeat[#heartbeat + 1] = tweenFn
+    task.delay(0.16, function()
+        for i = 1, #heartbeat do
+            if heartbeat[i] == tweenFn then
+                table.remove(heartbeat, i)
+                aspectMultiplier = CFrame.new(0, 0, 0, 1, 0, 0, 0, newValue, 0, 0, 0, 1)
+                break
+            end
         end
     end)
 end
-local function restoreMeshes()
-    for part, data in pairs(meshRestores) do
-        pcall(function()
-            if part.Parent and data.kind == "MeshPart" then
-                part.MeshId = data.MeshId
-                part.TextureID = data.TextureID
-            elseif part.Parent and data.kind == "SpecialMesh" and data.inst and data.inst.Parent then
-                data.inst.MeshId = data.MeshId
-                data.inst.TextureId = data.TextureId
-            end
-        end)
-    end
-    meshRestores = {}
-end
-local function applyGunMeshes()
-    if not flags.meshes_enabled then
-        restoreMeshes()
-        return
-    end
-    local pick = flags.meshes_preset
-    local key = type(pick) == "table" and pick[1] or pick or "DB (superfixedawp2)"
-    local preset = MESH_PRESETS[key] or MESH_PRESETS["DB (superfixedawp2)"]
-    local meshId = flags.meshes_custom_mesh_id or ""
-    if meshId ~= "" and not string.find(meshId, "rbxasset", 1, true) then
-        meshId = "rbxassetid://" .. meshId:gsub("%D", "")
-    end
-    if meshId == "" or meshId == "rbxassetid://" then
-        return
-    end
-    local function scan(container)
-        if not container then
-            return
-        end
-        for _, t in ipairs(container:GetChildren()) do
-            if t:IsA("Tool") and toolMatchesPreset(t, preset) then
-                local handle = t:FindFirstChild("Handle")
-                if handle then
-                    applyMeshToPart(handle, meshId)
-                end
-                for _, d in ipairs(t:GetDescendants()) do
-                    if d:IsA("MeshPart") or (d:IsA("BasePart") and d.Name:lower():find("mesh")) then
-                        applyMeshToPart(d, meshId)
-                    end
-                end
-            end
-        end
-    end
-    scan(player.Character)
-    scan(player:FindFirstChild("Backpack"))
-end
-heartbeat[#heartbeat + 1] = applyGunMeshes
 
+do
+
+jujuMisc.aspectRatioApplyLoop = aspectRatioApplyLoop
+jujuMisc.aspectRatioTweenTo = aspectRatioTweenTo
+jujuMisc.aspectMultiplier = aspectMultiplier
+jujuMisc.aspectLastTween = aspectLastTween
+end
 -- ---------------------------------------------------------------------------
 -- Gun skins engine (ported from juju lines 13507-14205).
 -- Provides: gunState, all gun* helpers, character connections, rainbow loop,
@@ -4816,7 +5120,24 @@ pcall(function()
     genv.LaniGunSkinsRefresh = gunRefreshWrapCatalog
 end)
 
+
+jujuMisc.gunApplyAllOnCharacter = gunApplyAllOnCharacter
+jujuMisc.gunRefreshDropdowns = gunRefreshDropdowns
+jujuMisc.gunSkinOptionsForWeapon = gunSkinOptionsForWeapon
+jujuMisc.gunSaveLoadoutFromUi = gunSaveLoadoutFromUi
+jujuMisc.gunTintSkinModel = gunTintSkinModel
+jujuMisc.gunRefreshRainbowTargets = gunRefreshRainbowTargets
+jujuMisc.gunRetintAllTools = gunRetintAllTools
+jujuMisc.gunState = gunState
+jujuMisc.gunRefreshWrapCatalog = gunRefreshWrapCatalog
+jujuMisc.gunConnectCharacter = gunConnectCharacter
+jujuMisc.gunGetColor = gunGetColor
+jujuMisc.gunGetMaterialEnum = gunGetMaterialEnum
+jujuMisc.gunDropdownPick = gunDropdownPick
+jujuMisc.materialNames = materialNames
+end
 -- ---------------------------------------------------------------------------
+do
 -- ESP engine (ported from juju lines 15039-15372).
 -- Provides: miscEspClearAll, miscEspEnsureNameTag, miscEspEnsurePicture,
 -- miscEspEnsureBoundingBox, miscEspGetStyle, miscEspRefresh,
@@ -4827,10 +5148,49 @@ end)
 local MISC_ESP_IMAGE_PRESET_IDS = {
     ["Custom (textbox below)"] = nil,
     ["Built-in: UI placeholder"] = "rbxasset://textures/ui/GuiImagePlaceholder.png",
-    ["Decal: Doge"] = "631727250",
-    ["Decal: Epic Duck"] = "92401568",
-    ["Decal: Elmo fire"] = "10901055606",
-    ["Decal: Rickroll"] = "6403436082",
+    ["Doge"] = "rbxassetid://631727250",
+    ["Epic Duck"] = "rbxassetid://92401568",
+    ["Elmo fire"] = "rbxassetid://10901055606",
+    ["Rickroll"] = "rbxassetid://6403436082",
+    ["Roblox logo"] = "rbxassetid://902843398",
+    ["Red circle"] = "rbxassetid://452229609",
+    ["Blue gradient"] = "rbxassetid://108065071894152",
+    ["Neon glow"] = "rbxassetid://75670465599935",
+    ["Galaxy"] = "rbxassetid://127739162486481",
+    ["Fire"] = "rbxassetid://72012761",
+    ["Lightning"] = "rbxassetid://161746408",
+    ["Smoke"] = "rbxassetid://868958290",
+    ["Sparkle"] = "rbxassetid://13399045620",
+    ["Star"] = "rbxassetid://504012900",
+    ["Heart"] = "rbxassetid://1218960017",
+    ["Skull"] = "rbxassetid://15714178196",
+    ["Skull 2"] = "rbxassetid://13399284158",
+    ["Flame"] = "rbxassetid://474698345",
+    ["Plasma"] = "rbxassetid://13398725909",
+    ["Energy"] = "rbxassetid://13399270987",
+    ["Crystal"] = "rbxassetid://630068329",
+    ["Diamond"] = "rbxassetid://4711447557",
+    ["Gem"] = "rbxassetid://630068662",
+    ["Aurora"] = "rbxassetid://431951748",
+    ["Vortex"] = "rbxassetid://437257730",
+    ["Cloud"] = "rbxassetid://16973739",
+    ["Sun"] = "rbxassetid://111092388570647",
+    ["Moon"] = "rbxassetid://13468463493",
+    ["Eye"] = "rbxassetid://10991634574",
+    ["Devil"] = "rbxassetid://12347489668",
+    ["Angel"] = "rbxassetid://71912684",
+    ["Crown"] = "rbxassetid://117545567621937",
+    ["Skull King"] = "rbxassetid://101000308879069",
+    ["Demon"] = "rbxassetid://138585375473577",
+    ["Wolf"] = "rbxassetid://925773143",
+    ["Dragon"] = "rbxassetid://10543118343",
+    ["Phoenix"] = "rbxassetid://102215017606248",
+    ["Snake"] = "rbxassetid://72781502159634",
+    ["Tiger"] = "rbxassetid://5548892116",
+    ["Lion"] = "rbxassetid://545993470",
+    ["Eagle"] = "rbxassetid://12573779832",
+    ["Shark"] = "rbxassetid://545993088",
+    ["Octopus"] = "rbxassetid://95315161963869",
 }
 
 local function miscEspNormalizeImageId(raw)
@@ -5135,122 +5495,530 @@ heartbeat[#heartbeat + 1] = function(dt)
     end
 end
 
--- ---------------------------------------------------------------------------
--- Crown engine (ported from juju lines 15374-15488).
--- Drawing-based HVH-style cone above local player's head.
--- ---------------------------------------------------------------------------
-local function miscCrownDestroy()
-    if miscState.crownConn then
-        miscState.crownConn:Disconnect()
-        miscState.crownConn = nil
+
+jujuMisc.miscEspRefresh = miscEspRefresh
+jujuMisc.miscEspClearAll = miscEspClearAll
+jujuMisc.MISC_ESP_IMAGE_PRESET_IDS = MISC_ESP_IMAGE_PRESET_IDS
+end
+-- (Crown feature removed — ESP remains)
+
+do
+-- ============================================================================
+-- Bullet tracer engine (ported from juju lines 19429-20155)
+-- Watches Workspace.Ignored for BULLET_RAYS + player's BulletBeams inventory
+-- folder. When a local-player-owned shot is detected, spawns a custom Beam
+-- (or 2D Drawing.Line) with user-chosen color, gradient, and lifetime.
+-- ============================================================================
+
+-- Custom signal implementation (juju uses signal.new())
+local TracerSignal = {}
+TracerSignal.__index = TracerSignal
+function TracerSignal.new()
+    return setmetatable({ _handlers = {} }, TracerSignal)
+end
+function TracerSignal:Fire(...)
+    for _, h in ipairs(self._handlers) do
+        pcall(h, ...)
     end
-    local t = miscState.crownDraw
-    miscState.crownDraw = nil
-    if type(t) == "table" then
-        for _, pair in ipairs(t) do
-            if type(pair) == "table" then
-                for _, d in ipairs(pair) do
-                    pcall(function()
-                        if d then
-                            if d.Remove then d:Remove()
-                            elseif d.Destroy then d:Destroy() end
-                        end
-                    end)
-                end
+end
+function TracerSignal:Connect(fn)
+    self._handlers[#self._handlers + 1] = fn
+    return {
+        Disconnect = function()
+            for i, h in ipairs(self._handlers) do
+                if h == fn then table.remove(self._handlers, i); break end
             end
+        end,
+    }
+end
+
+local jujuHoodCombat = {
+    installed = false,
+    bulletBeamsFolder = nil,
+    signals = { on_local_bullet_fired = TracerSignal.new() },
+    spawnCustomTracerBeam = nil,
+    connectLocalTracers = nil,
+    disconnectLocalTracers = nil,
+}
+
+local hoodState = {
+    tracerWatchReady = false,
+    ignoredBeamsConn = nil,
+    bulletBeamsConn = nil,
+    bulletBeamsDescConn = nil,
+    localTracerUntil = 0,
+}
+
+local function tracerDebugEnabled()
+    return flags.juju_bullet_tracer_debug == true
+end
+
+local function tracerPrint(...)
+    if tracerDebugEnabled() then print("[Tracer]", ...) end
+end
+
+local HOOD_TRACER_OBJECT_NAMES = {
+    BULLET_RAYS = true,
+    AIM_VIEWER_TRACER = true,
+}
+
+local function findFirstChildOfClass(object, className)
+    for _, child in ipairs(object:GetChildren()) do
+        if child:IsA(className) then return child end
+    end
+    return nil
+end
+
+local function hoodFindTracerBeam(object)
+    local beam = findFirstChildOfClass(object, "Beam")
+    if beam then return beam end
+    local gunBeam = object:FindFirstChild("GunBeam")
+    if gunBeam and gunBeam:IsA("Beam") then return gunBeam end
+    return object:FindFirstChildWhichIsA("Beam", true)
+end
+
+local function hoodObjectHasTracerBeam(object)
+    if not object then return false end
+    if object:IsA("Beam") or object.Name == "GunBeam" then return true end
+    return hoodFindTracerBeam(object) ~= nil
+end
+
+local function hoodIsTracerBulletObject(object)
+    if not object then return false end
+    if HOOD_TRACER_OBJECT_NAMES[object.Name] then return true end
+    return hoodObjectHasTracerBeam(object)
+end
+
+local function hoodResolveTracerCFrames(object, beam)
+    local startAtt = object:FindFirstChild("START_ATTACHMENT")
+    local endAtt = object:FindFirstChild("END_ATTACHMENT")
+    local startCf, endCf
+    if startAtt and startAtt:IsA("Attachment") then
+        startCf = startAtt.WorldCFrame
+    elseif beam and beam.Attachment0 then
+        startCf = beam.Attachment0.WorldCFrame
+    elseif object:IsA("BasePart") then
+        startCf = object.CFrame
+    else
+        local ok, pivot = pcall(function() return object:GetPivot() end)
+        startCf = ok and pivot or CFrame.new()
+    end
+    if endAtt and endAtt:IsA("Attachment") then
+        endCf = endAtt.WorldCFrame
+    elseif beam and beam.Attachment1 then
+        endCf = beam.Attachment1.WorldCFrame
+    else
+        endCf = startCf
+    end
+    return startCf, endCf
+end
+
+local function hoodGetBulletBeamsFolder()
+    local dataFolder = player:FindFirstChild("DataFolder")
+    if not dataFolder then
+        local ok, df = pcall(function() return player:WaitForChild("DataFolder", 20) end)
+        dataFolder = ok and df or nil
+    end
+    if not dataFolder then
+        dataFolder = Players:FindFirstChild("DataFolder")
+    end
+    if not dataFolder then return nil end
+    local inv = dataFolder:FindFirstChild("InventoryData")
+    if not inv then
+        local ok, iv = pcall(function() return dataFolder:WaitForChild("InventoryData", 20) end)
+        inv = ok and iv or nil
+    end
+    if not inv then return nil end
+    local beams = inv:FindFirstChild("BulletBeams")
+    if not beams then
+        local ok, bf = pcall(function() return inv:WaitForChild("BulletBeams", 20) end)
+        beams = ok and bf or nil
+    end
+    return beams
+end
+
+local function hoodTracerOwnerIsLocal(owner)
+    if owner == nil or owner == "" then return nil end
+    local ownerStr = tostring(owner)
+    return ownerStr == player.Name or ownerStr == player.DisplayName
+end
+
+-- Forward-declared spawnCustomTracerBeam (assigned in the UI function below)
+local function hoodFireTracerSignal(object, beam, endCf)
+    local owner = object:GetAttribute("OwnerCharacter")
+    local ownerLocal = hoodTracerOwnerIsLocal(owner)
+    local recentLocalShot = tick() <= (hoodState.localTracerUntil or 0)
+    if ownerLocal == false or (ownerLocal == nil and not recentLocalShot) then
+        return
+    end
+    -- Always fire the signal — the handler decides whether to spawn
+    jujuHoodCombat.signals.on_local_bullet_fired:Fire(object, beam, endCf, ownerLocal == true or recentLocalShot)
+end
+
+local function hoodProcessTracerObject(object)
+    if not object or not object.Parent then return end
+    if not hoodIsTracerBulletObject(object) then return end
+    task.wait()
+    local beam = hoodFindTracerBeam(object)
+    if not beam or not beam.Attachment1 then return end
+    local _startCf, endCf = hoodResolveTracerCFrames(object, beam)
+    hoodFireTracerSignal(object, beam, endCf)
+end
+
+local function hoodOnBulletBeamsChildAdded(child)
+    if not hoodIsTracerBulletObject(child) then return end
+    tracerPrint("BulletBeams ChildAdded:", child and child:GetFullName())
+    hoodProcessTracerObject(child)
+end
+
+local function hoodFindTracerRoot(inst)
+    local node = inst
+    while node and node.Parent do
+        local parent = node.Parent
+        if parent.Name == "Ignored" or parent.Name == "BulletBeams" then
+            return node
         end
+        node = parent
+    end
+    return inst
+end
+
+local function hoodOnIgnoredChildAdded(child)
+    if not child or child.Name ~= "BULLET_RAYS" then return end
+    tracerPrint("Ignored tracer ChildAdded:", child:GetFullName())
+    hoodProcessTracerObject(child)
+end
+
+local function hoodOnBulletBeamsDescendantAdded(desc)
+    if not desc:IsA("Beam") and desc.Name ~= "GunBeam" then return end
+    local root = hoodFindTracerRoot(desc)
+    if not root or not hoodIsTracerBulletObject(root) then return end
+    tracerPrint("Tracer DescendantAdded:", desc:GetFullName())
+    hoodProcessTracerObject(root)
+end
+
+local function hoodInstallTracerWatchers()
+    if hoodState.tracerWatchReady then return end
+    local ignored = Workspace:FindFirstChild("Ignored")
+    if not ignored then
+        tracerPrint("Tracer watch waiting for Workspace.Ignored")
+        task.delay(2, hoodInstallTracerWatchers)
+        return
+    end
+    hoodState.tracerWatchReady = true
+    jujuHoodCombat.bulletBeamsFolder = hoodGetBulletBeamsFolder()
+    hoodState.ignoredBeamsConn = ignored.ChildAdded:Connect(hoodOnIgnoredChildAdded)
+    for _, child in ipairs(ignored:GetChildren()) do
+        if child.Name == "BULLET_RAYS" then
+            task.spawn(hoodProcessTracerObject, child)
+        end
+    end
+    local bulletBeamsFolder = jujuHoodCombat.bulletBeamsFolder
+    if bulletBeamsFolder then
+        tracerPrint("Hood Customs tracer path:", bulletBeamsFolder:GetFullName())
+        hoodState.bulletBeamsConn = bulletBeamsFolder.ChildAdded:Connect(hoodOnBulletBeamsChildAdded)
+        hoodState.bulletBeamsDescConn = bulletBeamsFolder.DescendantAdded:Connect(hoodOnBulletBeamsDescendantAdded)
+    else
+        task.delay(3, function()
+            local folder = hoodGetBulletBeamsFolder()
+            if folder and not hoodState.bulletBeamsConn then
+                jujuHoodCombat.bulletBeamsFolder = folder
+                hoodState.bulletBeamsConn = folder.ChildAdded:Connect(hoodOnBulletBeamsChildAdded)
+                hoodState.bulletBeamsDescConn = folder.DescendantAdded:Connect(hoodOnBulletBeamsDescendantAdded)
+            end
+        end)
     end
 end
 
-local function miscCrownStart()
-    miscCrownDestroy()
-    if not flags.misc_head_crown then return end
-    local genvDraw = (type(getgenv) == "function" and getgenv()) or _G
-    local D = rawget(genvDraw, "Drawing")
-    if (type(D) ~= "table" or not D.new) and _G ~= genvDraw then
-        D = rawget(_G, "Drawing")
-    end
-    if type(D) ~= "table" or not D.new then
-        jujuNotify("Head crown needs global Drawing (executor)", 3)
-        return
-    end
-    local sides = math.floor((flags.misc_head_crown_sides ~= nil and flags.misc_head_crown_sides) or 16)
-    sides = math.clamp(sides, 8, 36)
-    local drawings = {}
-    for i = 1, sides do
-        local line = D.new("Line")
-        local tri = D.new("Triangle")
-        line.ZIndex = 2
-        line.Thickness = 2
-        tri.ZIndex = 1
-        tri.Filled = true
-        drawings[i] = { line, tri }
-    end
-    miscState.crownDraw = drawings
-    local tau = math.pi * 2
-    miscState.crownConn = RunService.RenderStepped:Connect(function()
-        if not flags.misc_head_crown then
-            miscCrownDestroy()
-            return
-        end
-        local cam = Workspace.CurrentCamera
-        local char = player.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local head = char and char:FindFirstChild("Head")
-        local pass = cam and head and hum and hum.Health > 0
-        if pass then
-            local zoom = (cam.CFrame.Position - cam.Focus.Position).Magnitude
-            pass = zoom > ((flags.misc_head_crown_min_zoom ~= nil and flags.misc_head_crown_min_zoom) or 0.5)
-        end
-        local col = flags.misc_head_crown_color or Color3.fromRGB(128, 18, 255)
-        if flags.misc_head_crown_rainbow then
-            col = Color3.fromHSV((tick() * 0.12) % 1, 0.55, 1)
-        end
-        local hatTr = (flags.misc_head_crown_hat_trn ~= nil and flags.misc_head_crown_hat_trn) or 0.35
-        hatTr = math.clamp(hatTr, 0, 1)
-        local circTr = (flags.misc_head_crown_ring_trn ~= nil and flags.misc_head_crown_ring_trn) or 0
-        circTr = math.clamp(circTr, 0, 1)
-        local height = (flags.misc_head_crown_height ~= nil and flags.misc_head_crown_height) or 0.75
-        local radius = (flags.misc_head_crown_radius ~= nil and flags.misc_head_crown_radius) or 1
-        local offY = (flags.misc_head_crown_off_y ~= nil and flags.misc_head_crown_off_y) or 0.75
-        for i = 1, sides do
-            local line = drawings[i][1]
-            local tri = drawings[i][2]
-            if pass then
-                local pos = head.Position + Vector3.new(0, offY, 0)
-                local topWorld = pos + Vector3.new(0, height, 0)
-                local last = (i / sides) * tau
-                local nxt = ((i + 1) / sides) * tau
-                local lastWorld = pos + (Vector3.new(math.cos(last), 0, math.sin(last)) * radius)
-                local nextWorld = pos + (Vector3.new(math.cos(nxt), 0, math.sin(nxt)) * radius)
-                local lastScreen = cam:WorldToViewportPoint(lastWorld)
-                local nextScreen = cam:WorldToViewportPoint(nextWorld)
-                local topScreen = cam:WorldToViewportPoint(topWorld)
-                if lastScreen.Z > 0 and nextScreen.Z > 0 and topScreen.Z > 0 then
-                    line.From = Vector2.new(lastScreen.X, lastScreen.Y)
-                    line.To = Vector2.new(nextScreen.X, nextScreen.Y)
-                    line.Color = col
-                    line.Transparency = circTr
-                    line.Visible = true
-                    tri.PointA = Vector2.new(topScreen.X, topScreen.Y)
-                    tri.PointB = line.From
-                    tri.PointC = line.To
-                    tri.Color = col
-                    tri.Transparency = hatTr
-                    tri.Visible = true
-                else
-                    line.Visible = false
-                    tri.Visible = false
-                end
-            else
-                line.Visible = false
-                tri.Visible = false
-            end
+-- MainEvent "ShootingRecoil" listener — sets localTracerUntil so ownerless beams count as local
+local function hoodInstallClientEvent()
+    local mainevent = ReplicatedStorage:FindFirstChild("MainEvent")
+    if not mainevent then return end
+    mainevent.OnClientEvent:Connect(function(...)
+        local args = { ... }
+        if type(args[1]) == "string" and args[1] == "ShootingRecoil" then
+            hoodState.localTracerUntil = tick() + 0.4
         end
     end)
 end
 
+-- Beam templates (3 styles)
+local tracerBeamTemplates = {
+    laser = Instance.new("Beam"),
+    light = Instance.new("Beam"),
+    flow = Instance.new("Beam"),
+}
+do
+    local t = tracerBeamTemplates.laser
+    t.FaceCamera = true
+    t.TextureSpeed = 1.5
+    t.Width1 = 0.25
+    t.TextureLength = 2
+    t.Width0 = 0.25
+    t.LightEmission = 3
+    t.Brightness = 2.5
+    t.Texture = "rbxassetid://12781800668"
+    local t2 = tracerBeamTemplates.light
+    t2.FaceCamera = true
+    t2.TextureSpeed = 2
+    t2.Width1 = 0.25
+    t2.LightInfluence = 1
+    t2.LightEmission = 3
+    t2.Width0 = 0.25
+    t2.Segments = 1
+    t2.Texture = "http://www.roblox.com/asset/?id=2382169232"
+    t2.TextureLength = 15
+    t2.TextureMode = Enum.TextureMode.Wrap
+    local t3 = tracerBeamTemplates.flow
+    t3.FaceCamera = true
+    t3.TextureSpeed = 2.5
+    t3.Width1 = 0.2
+    t3.Width0 = 0.2
+    t3.LightEmission = 3
+    t3.Brightness = 5
+    t3.Texture = "rbxassetid://12788927812"
+end
+
+local function tracerStyleKey()
+    local pick = flags.juju_local_bullet_tracers_style
+    return type(pick) == "table" and pick[1] or pick or "laser"
+end
+
+local function tracerBeamTemplate()
+    return tracerBeamTemplates[tracerStyleKey()] or tracerBeamTemplates.laser
+end
+
+local function tracerColorSeq()
+    local c0 = flags.juju_local_bullet_tracers_color or Color3.fromRGB(133, 220, 255)
+    local c1 = flags.juju_local_bullet_tracers_gradient_color or Color3.fromRGB(241, 133, 255)
+    return ColorSequence.new({
+        ColorSequenceKeypoint.new(0, c0),
+        ColorSequenceKeypoint.new(1, c1),
+    })
+end
+
+local function tracerTransparencySeq()
+    local t0 = flags.juju_local_bullet_tracers_transparency or 0
+    local t1 = flags.juju_local_bullet_tracers_gradient_transparency or 0
+    return NumberSequence.new({
+        NumberSequenceKeypoint.new(0, t0),
+        NumberSequenceKeypoint.new(1, t1),
+    })
+end
+
+local function tracerBeamParent()
+    return Workspace:FindFirstChild("Ignored") or Workspace.Terrain
+end
+
+local function destroyTracerBeam(beam, attachment0, attachment1)
+    local elapsed = 0
+    local keypoints = beam.Transparency.Keypoints
+    local oldT0 = keypoints[1] and keypoints[1].Value or 0
+    local oldT1 = keypoints[2] and keypoints[2].Value or 0
+    local tweenFn = function(dt)
+        elapsed += dt
+        local value = TweenService:GetValue(elapsed / 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        beam.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, oldT0 + (1 - oldT0) * value),
+            NumberSequenceKeypoint.new(1, oldT1 + (1 - oldT1) * value),
+        })
+    end
+    heartbeat[#heartbeat + 1] = tweenFn
+    task.delay(0.2, function()
+        for i = 1, #heartbeat do
+            if heartbeat[i] == tweenFn then
+                table.remove(heartbeat, i)
+                break
+            end
+        end
+        if beam.Parent then beam:Destroy() end
+        if attachment0 and attachment0.Parent then attachment0:Destroy() end
+        if attachment1 and attachment1.Parent then attachment1:Destroy() end
+    end)
+end
+
+local function spawnCustomTracerBeam(startCf, endCf, destroyObject)
+    if not flags.juju_local_bullet_tracers then return false end
+    if typeof(startCf) ~= "CFrame" or typeof(endCf) ~= "CFrame" then return false end
+    tracerPrint("spawnCustomTracerBeam", startCf.Position, "->", endCf.Position)
+    local new_beam = tracerBeamTemplate():Clone()
+    new_beam.Color = tracerColorSeq()
+    new_beam.Transparency = tracerTransparencySeq()
+    local attachment0 = Instance.new("Attachment")
+    attachment0.Parent = Workspace.Terrain
+    attachment0.WorldCFrame = startCf
+    local attachment1 = Instance.new("Attachment")
+    attachment1.Parent = Workspace.Terrain
+    attachment1.WorldCFrame = endCf
+    new_beam.Attachment0 = attachment0
+    new_beam.Attachment1 = attachment1
+    new_beam.Parent = tracerBeamParent()
+    if destroyObject and destroyObject.Parent then
+        destroyObject:Destroy()
+    end
+    local life = flags.juju_local_bullet_tracers_lifetime or 0.8
+    task.delay(life, destroyTracerBeam, new_beam, attachment0, attachment1)
+    return true
+end
+jujuHoodCombat.spawnCustomTracerBeam = spawnCustomTracerBeam
+
+local function resolveTracerStartCFrame(object, beam, endCframe)
+    if not object then return endCframe end
+    local startAtt = object:FindFirstChild("START_ATTACHMENT")
+    if startAtt and startAtt:IsA("Attachment") then return startAtt.WorldCFrame end
+    if beam and beam.Attachment0 then return beam.Attachment0.WorldCFrame end
+    if object:IsA("BasePart") then return object.CFrame end
+    local ok, pivot = pcall(function() return object:GetPivot() end)
+    if ok then return pivot end
+    return endCframe
+end
+
+local function doBeamBulletTracer(object, beam, position, isLocal)
+    tracerPrint("doBeamBulletTracer", object and object.Name, isLocal)
+    local startCf = resolveTracerStartCFrame(object, beam, position)
+    spawnCustomTracerBeam(startCf, position, object)
+end
+
+local function doLineBulletTracer(object, beam, position, _isLocal)
+    if not Drawing then
+        if object and object.Parent then object:Destroy() end
+        return
+    end
+    local ok, lineFactory = pcall(function() return Drawing.new("Line") end)
+    if not ok or not lineFactory then
+        if object and object.Parent then object:Destroy() end
+        return
+    end
+    local transparency = 1 - (flags.juju_local_bullet_tracers_transparency or 0)
+    local outline = lineFactory
+    outline.Color = flags.juju_local_bullet_tracers_outline_color or Color3.fromRGB(15, 15, 15)
+    outline.Thickness = 3
+    outline.Transparency = 1 - (flags.juju_local_bullet_tracers_outline_transparency or 0)
+    outline.Visible = true
+    local line = Drawing.new("Line")
+    line.Color = flags.juju_local_bullet_tracers_color or Color3.fromRGB(133, 220, 255)
+    line.Thickness = 1
+    line.Transparency = transparency
+    line.Visible = true
+    local end_position = position.Position
+    local startCf = resolveTracerStartCFrame(object, beam, position)
+    local start_position = startCf.Position
+    local lifetime = flags.juju_local_bullet_tracers_lifetime or 0.8
+    local elapsed = 0
+    local newFn = function(dt)
+        if not line or not outline then return end
+        elapsed += dt
+        local cam = Workspace.CurrentCamera
+        if not cam then return end
+        local pos, onScreen = cam:WorldToViewportPoint(start_position)
+        local pos2, onScreen2 = cam:WorldToViewportPoint(end_position)
+        if not onScreen and not onScreen2 then
+            line.Visible = false
+            outline.Visible = false
+            return
+        end
+        line.Visible = true
+        outline.Visible = true
+        local size = cam.ViewportSize
+        local xFull, yFull = size.X, size.Y
+        local xHalf, yHalf = xFull / 2, yFull / 2
+        local from = Vector2.new(pos.X, pos.Y)
+        local to = Vector2.new(pos2.X, pos2.Y)
+        if pos.Z < 0 then
+            from = Vector2.new(
+                math.clamp(xHalf + (xHalf - pos.X), 0, xFull),
+                math.clamp(yHalf + (yHalf - pos.Y), 0, yFull)
+            )
+        end
+        if pos2.Z < 0 then
+            to = Vector2.new(
+                math.clamp(xHalf + (xHalf - pos2.X), 0, xFull),
+                math.clamp(yHalf + (yHalf - pos2.Y), 0, yFull)
+            )
+        end
+        if elapsed > lifetime then
+            local fadeT = elapsed - lifetime
+            local value = TweenService:GetValue(fadeT / 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local newTrn = transparency + (0 - transparency) * value
+            line.Transparency = newTrn
+            outline.Transparency = newTrn
+            from = from + (line.From - from) * value
+            line.From = from
+        else
+            line.From = from
+        end
+        line.To = to
+        local offset = (from - to).Unit
+        outline.From = from + offset
+        outline.To = to - offset
+    end
+    heartbeat[#heartbeat + 1] = newFn
+    if object and object.Parent then object:Destroy() end
+    task.delay(lifetime + 0.3, function()
+        for i = 1, #heartbeat do
+            if heartbeat[i] == newFn then
+                table.remove(heartbeat, i)
+                break
+            end
+        end
+        pcall(function() line:Remove() end)
+        pcall(function() outline:Remove() end)
+    end)
+end
+
+local tracerHandlerConn = nil
+local function tracerHandler()
+    local pick = flags.juju_local_bullet_tracers_type
+    local typ = type(pick) == "table" and pick[1] or pick or "beam"
+    if typ == "beam" then return doBeamBulletTracer end
+    return doLineBulletTracer
+end
+
+local function connectLocalTracers()
+    if tracerHandlerConn then
+        tracerHandlerConn:Disconnect()
+        tracerHandlerConn = nil
+    end
+    if not flags.juju_local_bullet_tracers then return end
+    local sig = jujuHoodCombat.signals.on_local_bullet_fired
+    if not sig then return end
+    local handler = tracerHandler()
+    tracerHandlerConn = sig:Connect(function(object, beam, cframe, isLocal)
+        tracerPrint("signal received", object and object.Name, isLocal)
+        if isLocal == false then return end
+        handler(object, beam, cframe, isLocal)
+    end)
+    tracerPrint("connected on_local_bullet_fired ->", flags.juju_local_bullet_tracers_type or "beam")
+end
+
+local function disconnectLocalTracers()
+    if tracerHandlerConn then
+        tracerHandlerConn:Disconnect()
+        tracerHandlerConn = nil
+    end
+end
+
+jujuHoodCombat.connectLocalTracers = connectLocalTracers
+jujuHoodCombat.disconnectLocalTracers = disconnectLocalTracers
+
+-- Install watchers + MainEvent listener
+task.defer(function()
+    pcall(hoodInstallTracerWatchers)
+    pcall(hoodInstallClientEvent)
+    jujuHoodCombat.installed = true
+    if flags.juju_local_bullet_tracers then
+        connectLocalTracers()
+    end
+end)
+
+
+jujuMisc.connectLocalTracers = connectLocalTracers
+jujuMisc.disconnectLocalTracers = disconnectLocalTracers
+jujuMisc.jujuHoodCombat = jujuHoodCombat
+jujuMisc.spawnCustomTracerBeam = spawnCustomTracerBeam
+end
 -- ============================================================================
+do
 -- Config engine — save/load .cfg files via executor's writefile/readfile
 -- ============================================================================
 local CONFIG_DIR = "RisqueUI"
@@ -5287,19 +6055,24 @@ local function configSave(name)
         jujuNotify("Config name is empty", 3)
         return false
     end
-    -- Sanitize name (no path separators)
     name = name:gsub("[/\\:*?\"<>|]", "_")
-    -- Serialize flags, converting Color3 values to tables
     local data = {}
     for k, v in pairs(Library.Flags) do
-        if typeof(v) == "Color3" then
-            data[k] = { __type = "Color3", R = v.R, G = v.G, B = v.B }
-        elseif typeof(v) == "EnumItem" then
-            data[k] = { __type = "Enum", name = v.Name }
-        elseif type(v) == "function" or type(v) == "userdata" then
-            -- skip unserializable values
-        else
-            data[k] = v
+        if type(k) == "string" and k:sub(1, 1) ~= "_" then
+            if typeof(v) == "Color3" then
+                data[k] = { __type = "Color3", R = v.R, G = v.G, B = v.B }
+            elseif typeof(v) == "EnumItem" then
+                -- skip keybind enums (not reliably restorable)
+            elseif type(v) == "boolean" or type(v) == "number" or type(v) == "string" then
+                data[k] = v
+            elseif type(v) == "table" then
+                -- store tables (like ac_lab_silent_methods) as-is if JSON-safe
+                local ok, encoded = pcall(function() return HttpService:JSONEncode(v) end)
+                if ok then
+                    local ok2, decoded = pcall(function() return HttpService:JSONDecode(encoded) end)
+                    if ok2 then data[k] = decoded end
+                end
+            end
         end
     end
     local ok, json = pcall(function() return HttpService:JSONEncode(data) end)
@@ -5319,7 +6092,7 @@ local function configSave(name)
         jujuNotify("Config saved: " .. name, 1)
         return true
     else
-        jujuNotify("Failed to write config (executor may not support writefile)", 3)
+        jujuNotify("Failed to write config", 3)
         return false
     end
 end
@@ -5345,14 +6118,28 @@ local function configLoad(name)
         jujuNotify("Config file is corrupted", 3)
         return false
     end
-    -- Convert Color3/Enum back and write to Library.Flags
+    -- Write loaded values to Library.Flags (only valid types)
     for k, v in pairs(data) do
-        if type(v) == "table" and v.__type == "Color3" then
-            Library.Flags[k] = Color3.new(v.R, v.G, v.B)
-        elseif type(v) == "table" and v.__type == "Enum" then
-            -- Skip enums (keybinds) — can't reliably restore
-        else
-            Library.Flags[k] = v
+        if type(k) == "string" then
+            if type(v) == "table" and v.__type == "Color3" then
+                Library.Flags[k] = Color3.new(
+                    tonumber(v.R) or 0,
+                    tonumber(v.G) or 0,
+                    tonumber(v.B) or 0
+                )
+            elseif type(v) == "table" and v.R and v.G and v.B and not v.__type then
+                -- Handle legacy [R,G,B] format (0-255 ints)
+                Library.Flags[k] = Color3.new(
+                    (tonumber(v.R) or 0) / 255,
+                    (tonumber(v.G) or 0) / 255,
+                    (tonumber(v.B) or 0) / 255
+                )
+            elseif type(v) == "boolean" or type(v) == "number" or type(v) == "string" then
+                Library.Flags[k] = v
+            elseif type(v) == "table" then
+                -- keep tables as-is (e.g. ac_lab_silent_methods)
+                Library.Flags[k] = v
+            end
         end
     end
     -- Apply to UI elements via the config registry
@@ -5380,6 +6167,14 @@ local function configDelete(name)
     jujuNotify("Config deleted: " .. name, 2)
     return true
 end
+
+
+jujuMisc.configSave = configSave
+jujuMisc.configLoad = configLoad
+jujuMisc.configDelete = configDelete
+jujuMisc.configListFiles = configListFiles
+end
+-- (Force Hit feature removed)
 
 -- ============================================================================
 -- MAIN UI — builds all tabs/sections for the ported features
@@ -5409,7 +6204,7 @@ local function setSilentMethod(label, on)
 end
 
 -- Constants for AC lab dropdowns
-local AIM_KEYS = { "MouseButton2", "MouseButton1", "E", "Q", "F", "C", "V", "X", "Z", "LeftControl", "LeftShift" }
+local AIM_KEYS = { "MouseButton2", "MouseButton1", "MouseButton3", "MouseButton4", "E", "Q", "F", "C", "V", "X", "Z", "LeftControl", "LeftShift" }
 local EASING_STYLES = { "Linear", "Sine", "Quad", "Cubic", "Quart", "Expo", "Back", "Bounce", "Elastic" }
 local EASING_DIRS = { "In", "Out", "InOut" }
 local BONE_NAMES = { "Head", "UpperTorso", "HumanoidRootPart", "LowerTorso", "LeftArm", "RightArm", "LeftLeg", "RightLeg", "Torso" }
@@ -5434,8 +6229,8 @@ local Visuals = Window:CreateTab("Visuals")
 local Skybox = Visuals:CreateSection("Skybox", "Left")
 Skybox:AddDropdown({
     Name = "Sky preset",
-    Options = skyOptionNames,
-    Default = skyOptionNames[1],
+    Options = jujuMisc.skyOptionNames,
+    Default = jujuMisc.skyOptionNames[1],
     Flag = "sky_preset_name",
 })
 Skybox:AddButton({
@@ -5444,7 +6239,7 @@ Skybox:AddButton({
         local choice = flags.sky_preset_name
         local n = type(choice) == "table" and choice[1] or choice
         if n then
-            pcall(applySkyPresetRow, n)
+            pcall(jujuMisc.applySkyPresetRow, n)
         end
     end,
 })
@@ -5466,8 +6261,8 @@ WorldTime:AddToggle({
     Flag = "wx_clock_enabled",
     Callback = function(on)
         if on then
-            if worldTimeState.savedClock == nil then
-                worldTimeState.savedClock = Lighting.ClockTime
+            if jujuMisc.worldTimeState.savedClock == nil then
+                jujuMisc.worldTimeState.savedClock = Lighting.ClockTime
             end
             local v = flags.wx_clock_time
             if v ~= nil then
@@ -5475,9 +6270,9 @@ WorldTime:AddToggle({
             end
             jujuNotify("World time override on", 1)
         else
-            if worldTimeState.savedClock ~= nil then
-                Lighting.ClockTime = worldTimeState.savedClock
-                worldTimeState.savedClock = nil
+            if jujuMisc.worldTimeState.savedClock ~= nil then
+                Lighting.ClockTime = jujuMisc.worldTimeState.savedClock
+                jujuMisc.worldTimeState.savedClock = nil
             end
             jujuNotify("World time restored", 2)
         end
@@ -5502,43 +6297,95 @@ Atmosphere:AddToggle({
     Name = "Atmosphere",
     Default = false,
     Flag = "atmosphere",
-    Callback = function() refreshClientAtmosphere() end,
+    Callback = function() jujuMisc.refreshClientAtmosphere() end,
 })
 Atmosphere:AddColorpicker({
     Name = "Atmosphere color",
     Default = Color3.fromRGB(255, 255, 255),
     Flag = "atmosphere_color",
-    Callback = function(v) if atmoInstance then atmoInstance.Color = v end end,
+    Callback = function(v) if atmoInstance then jujuMisc.atmoInstance.Color = v end end,
 })
 Atmosphere:AddColorpicker({
     Name = "Decay color",
     Default = Color3.fromRGB(120, 120, 120),
     Flag = "decay_color",
-    Callback = function(v) if atmoInstance then atmoInstance.Decay = v end end,
+    Callback = function(v) if atmoInstance then jujuMisc.atmoInstance.Decay = v end end,
 })
 Atmosphere:AddSlider({
     Name = "Haze",
     Min = 0, Max = 10, Default = 1, Step = 0.001,
     Flag = "haze",
-    Callback = function(v) if atmoInstance then atmoInstance.Haze = v end end,
+    Callback = function(v) if atmoInstance then jujuMisc.atmoInstance.Haze = v end end,
 })
 Atmosphere:AddSlider({
     Name = "Glare",
     Min = 0, Max = 10, Default = 10, Step = 0.001,
     Flag = "glare",
-    Callback = function(v) if atmoInstance then atmoInstance.Glare = v end end,
+    Callback = function(v) if atmoInstance then jujuMisc.atmoInstance.Glare = v end end,
 })
 Atmosphere:AddSlider({
     Name = "Offset",
     Min = 0, Max = 1, Default = 0, Step = 0.001,
     Flag = "offset",
-    Callback = function(v) if atmoInstance then atmoInstance.Offset = v end end,
+    Callback = function(v) if atmoInstance then jujuMisc.atmoInstance.Offset = v end end,
 })
 Atmosphere:AddSlider({
     Name = "Density",
     Min = 0, Max = 1, Default = 0.35, Step = 0.001,
     Flag = "density",
-    Callback = function(v) if atmoInstance then atmoInstance.Density = v end end,
+    Callback = function(v) if atmoInstance then jujuMisc.atmoInstance.Density = v end end,
+})
+
+local WorldSnow = Visuals:CreateSection("World Snow", "Left")
+WorldSnow:AddToggle({
+    Name = "World snow",
+    Default = false,
+    Flag = "wx_world_snow",
+    Callback = function(on)
+        if on then
+            jujuMisc.wxSnowEnable()
+            jujuNotify("World snow on — " .. #jujuMisc.wxSnow.cells .. " cells", 1)
+        else
+            jujuMisc.wxSnowDisable()
+            jujuNotify("World snow off", 2)
+        end
+    end,
+})
+WorldSnow:AddSlider({
+    Name = "Snow amount",
+    Min = 0, Max = 200, Default = 115, Step = 1, Suffix = "%",
+    Flag = "wx_world_snow_rate",
+    Callback = function() if jujuMisc.wxSnow.active then jujuMisc.wxSnowApplyEmitterSettings() end end,
+})
+WorldSnow:AddSlider({
+    Name = "Wind",
+    Min = 0, Max = 100, Default = 40, Step = 1, Suffix = "%",
+    Flag = "wx_world_snow_wind",
+    Callback = function() if jujuMisc.wxSnow.active then jujuMisc.wxSnowStep(0) end end,
+})
+WorldSnow:AddSlider({
+    Name = "Fall speed",
+    Min = 1, Max = 100, Default = 80, Step = 1, Suffix = "%",
+    Flag = "wx_world_snow_speed",
+    Callback = function() if jujuMisc.wxSnow.active then jujuMisc.wxSnowApplyEmitterSettings() end end,
+})
+WorldSnow:AddColorpicker({
+    Name = "Flake color",
+    Default = Color3.fromRGB(255, 255, 255),
+    Flag = "wx_world_snow_color",
+    Callback = function() if jujuMisc.wxSnow.active then jujuMisc.wxSnowApplyEmitterSettings() end end,
+})
+WorldSnow:AddToggle({
+    Name = "Ambient wind",
+    Default = true,
+    Flag = "wx_world_snow_ambient",
+    Callback = function(on) if jujuMisc.wxSnow.active then jujuMisc.wxSnowSetAmbient(on) end end,
+})
+WorldSnow:AddToggle({
+    Name = "Hide indoors",
+    Default = true,
+    Flag = "wx_world_snow_indoor_hide",
+    Callback = function() if jujuMisc.wxSnow.active then jujuMisc.wxSnowStep(0) end end,
 })
 
 local WrapSkins = Visuals:CreateSection("Wrap Skins", "Right")
@@ -5548,7 +6395,7 @@ elWrapOn = WrapSkins:AddToggle({
     Flag = "gun_wrap_enabled",
     Callback = function(on)
         if on then
-            gunApplyAllOnCharacter(player.Character)
+            jujuMisc.gunApplyAllOnCharacter(player.Character)
         end
     end,
 })
@@ -5558,9 +6405,9 @@ elWeapon = WrapSkins:AddDropdown({
     Default = "DoubleBarrel",
     Flag = "gun_weapon_pick",
     Callback = function()
-        local wn = gunDropdownPick("gun_weapon_pick")
+        local wn = jujuMisc.gunDropdownPick("gun_weapon_pick")
         if elSkin and wn and wn ~= "(no Wraps yet)" then
-            elSkin:Refresh(gunSkinOptionsForWeapon(wn))
+            elSkin:Refresh(jujuMisc.gunSkinOptionsForWeapon(wn))
         end
     end,
 })
@@ -5570,9 +6417,9 @@ elSkin = WrapSkins:AddDropdown({
     Default = "Off",
     Flag = "gun_skin_pick",
     Callback = function()
-        gunSaveLoadoutFromUi()
+        jujuMisc.gunSaveLoadoutFromUi()
         if flags.gun_wrap_enabled ~= false then
-            gunApplyAllOnCharacter(player.Character)
+            jujuMisc.gunApplyAllOnCharacter(player.Character)
         end
     end,
 })
@@ -5581,8 +6428,8 @@ elApplyAll = WrapSkins:AddToggle({
     Default = false,
     Flag = "gun_apply_skin_all",
     Callback = function()
-        gunSaveLoadoutFromUi()
-        gunApplyAllOnCharacter(player.Character)
+        jujuMisc.gunSaveLoadoutFromUi()
+        jujuMisc.gunApplyAllOnCharacter(player.Character)
     end,
 })
 elKnifeSkin = WrapSkins:AddDropdown({
@@ -5591,16 +6438,16 @@ elKnifeSkin = WrapSkins:AddDropdown({
     Default = "Off",
     Flag = "gun_knife_skin",
     Callback = function()
-        gunSaveLoadoutFromUi()
+        jujuMisc.gunSaveLoadoutFromUi()
         if flags.gun_wrap_enabled ~= false then
-            gunApplyAllOnCharacter(player.Character)
+            jujuMisc.gunApplyAllOnCharacter(player.Character)
         end
     end,
 })
 WrapSkins:AddButton({
     Name = "Refresh Wraps list",
     Callback = function()
-        local n = gunRefreshDropdowns()
+        local n = jujuMisc.gunRefreshDropdowns()
         jujuNotify(
             n > 0 and ("Wraps: " .. tostring(n) .. " weapons") or "Wraps folder not loaded — join Hood Customs first",
             n > 0 and 1 or 3
@@ -5610,8 +6457,8 @@ WrapSkins:AddButton({
 WrapSkins:AddButton({
     Name = "Apply skins now",
     Callback = function()
-        gunSaveLoadoutFromUi()
-        local n = gunApplyAllOnCharacter(player.Character)
+        jujuMisc.gunSaveLoadoutFromUi()
+        local n = jujuMisc.gunApplyAllOnCharacter(player.Character)
         jujuNotify("Applied wrap skins to " .. tostring(n) .. " tool(s)", n > 0 and 1 or 3)
     end,
 })
@@ -5627,7 +6474,7 @@ elGunColor = SkinColor:AddColorpicker({
             if ch then
                 for _, h in ipairs(ch:GetDescendants()) do
                     if h.Name == "SkinModel" then
-                        gunTintSkinModel(h.Parent)
+                        jujuMisc.gunTintSkinModel(h.Parent)
                     end
                 end
             end
@@ -5636,7 +6483,7 @@ elGunColor = SkinColor:AddColorpicker({
 })
 SkinColor:AddDropdown({
     Name = "Skin model material",
-    Options = materialNames,
+    Options = jujuMisc.materialNames,
     Default = "Neon",
     Flag = "gun_mat_name",
 })
@@ -5645,7 +6492,7 @@ elColorOn = SkinColor:AddToggle({
     Default = true,
     Flag = "gun_color_mat",
     Callback = function()
-        gunApplyAllOnCharacter(player.Character)
+        jujuMisc.gunApplyAllOnCharacter(player.Character)
     end,
 })
 elRainbow = SkinColor:AddToggle({
@@ -5654,34 +6501,15 @@ elRainbow = SkinColor:AddToggle({
     Flag = "gun_rainbow_color",
     Callback = function(on)
         if on then
-            gunRefreshRainbowTargets()
+            jujuMisc.gunRefreshRainbowTargets()
         end
-        gunRetintAllTools()
+        jujuMisc.gunRetintAllTools()
     end,
 })
 SkinColor:AddSlider({
     Name = "Rainbow speed",
     Min = 0.02, Max = 0.35, Default = 0.11, Step = 0.01,
     Flag = "gun_rainbow_speed",
-})
-
-local GunMeshes = Visuals:CreateSection("Gun Meshes", "Right")
-GunMeshes:AddToggle({
-    Name = "Mesh changer",
-    Default = false,
-    Flag = "meshes_enabled",
-})
-GunMeshes:AddDropdown({
-    Name = "Preset",
-    Options = { "DB (superfixedawp2)" },
-    Default = "DB (superfixedawp2)",
-    Flag = "meshes_preset",
-})
-GunMeshes:AddTextbox({
-    Name = "Mesh rbxassetid (upload superfixedawp2.obj)",
-    Default = "",
-    Placeholder = "rbxassetid://...",
-    Flag = "meshes_custom_mesh_id",
 })
 
 end -- Visuals tab
@@ -5694,23 +6522,28 @@ local AimTab = Window:CreateTab("Aim")
 
 local CameraAssist = AimTab:CreateSection("Camera Assist", "Left")
 CameraAssist:AddSlider({
-    Name = "Camera assist max distance",
+    Name = "Max distance",
     Min = 50, Max = 2500, Default = 520, Step = 1,
     Flag = "ac_lab_camera_max_dist",
 })
 CameraAssist:AddSlider({
-    Name = "Camera assist FOV",
+    Name = "FOV",
     Min = 1, Max = 180, Default = 52, Step = 1, Suffix = "°",
     Flag = "ac_lab_camera_fov",
 })
+CameraAssist:AddDropdown({
+    Name = "Activation mode",
+    Options = { "Hold", "Toggle" },
+    Default = "Hold",
+    Flag = "ac_lab_assist_mode",
+})
 local elAcLegit = CameraAssist:AddToggle({
-    Name = "Camera assist (mouse move)",
+    Name = "Camera assist",
     Default = false,
     Flag = "ac_lab_legit_smooth",
     Callback = function(on)
         if on then
             jujuAcLab.acLabConnectSmoothAssist()
-            jujuNotify("Camera assist ON. Hold your aim key (set in Assist+ tab).", 1)
         else
             jujuAcLab.acLabDisconnectSmooth()
             if jujuAcLab.acLabEnsureRenderStep then
@@ -5719,16 +6552,14 @@ local elAcLegit = CameraAssist:AddToggle({
         end
     end,
 })
-local elAcLegitSticky = CameraAssist:AddToggle({
-    Name = "Sticky lock (hold aim key — never unlock until release)",
+CameraAssist:AddToggle({
+    Name = "Sticky lock",
     Default = false,
     Flag = "ac_lab_legit_sticky",
     Callback = function(on)
         if not on and acLabState then
             acLabState.stickyAssistPart = nil
             acLabState.stickyAssistModel = nil
-        elseif on and not flags.ac_lab_legit_smooth then
-            jujuNotify("Turn on Camera assist for RMB lock-on", 3)
         end
     end,
 })
@@ -5738,17 +6569,17 @@ CameraAssist:AddToggle({
     Flag = "ac_lab_assist_npcs",
 })
 CameraAssist:AddSlider({
-    Name = "X prediction (left/right lead)",
+    Name = "X prediction",
     Min = 0, Max = 200, Default = 18, Step = 1, Suffix = "%",
     Flag = "ac_lab_predict_x",
 })
 CameraAssist:AddSlider({
-    Name = "Y prediction (up/down lead)",
+    Name = "Y prediction",
     Min = 0, Max = 200, Default = 12, Step = 1, Suffix = "%",
     Flag = "ac_lab_predict_y",
 })
 CameraAssist:AddSlider({
-    Name = "Camera assist speed (5 = instant snap)",
+    Name = "Assist speed",
     Min = 0.02, Max = 5, Default = 0.38, Step = 0.01,
     Flag = "ac_lab_smooth_alpha",
 })
@@ -5805,33 +6636,9 @@ SilentAim:AddDropdown({
     Default = "Head",
     Flag = "ac_lab_silent_hitbox",
 })
--- Silent redirect methods — 4 toggles that update flags.ac_lab_silent_methods table
-SilentAim:AddToggle({
-    Name = "Redirect: Mouse (Hit/Target/UnitRay)",
-    Default = true,
-    Flag = "ac_lab_silent_method_mouse",
-    Callback = function(on) setSilentMethod("Mouse (Hit/Target/UnitRay)", on) end,
-})
-SilentAim:AddToggle({
-    Name = "Redirect: Workspace Raycast",
-    Default = true,
-    Flag = "ac_lab_silent_method_ray",
-    Callback = function(on) setSilentMethod("Workspace Raycast", on) end,
-})
-SilentAim:AddToggle({
-    Name = "Redirect: Camera ScreenPointToRay",
-    Default = true,
-    Flag = "ac_lab_silent_method_spr",
-    Callback = function(on) setSilentMethod("Camera ScreenPointToRay", on) end,
-})
-SilentAim:AddToggle({
-    Name = "Redirect: Camera ViewportPointToRay",
-    Default = true,
-    Flag = "ac_lab_silent_method_vpr",
-    Callback = function(on) setSilentMethod("Camera ViewportPointToRay", on) end,
-})
+-- Silent redirect methods are always all-on (no UI needed)
 local elAcSilent = SilentAim:AddToggle({
-    Name = "Silent aim (MASTER)",
+    Name = "Silent aim",
     Default = false,
     Flag = "ac_lab_silent_aim",
     Callback = function(on)
@@ -5853,11 +6660,6 @@ local elAcSilent = SilentAim:AddToggle({
             jujuNotify("Silent aim on: mouse + ray redirects (players and rigged NPCs).", 1)
         end
     end,
-})
-SilentAim:AddToggle({
-    Name = "Spread reduction (while silent)",
-    Default = true,
-    Flag = "hood_spread_reduce",
 })
 
 end -- Aim tab
@@ -5979,12 +6781,12 @@ FovRing:AddToggle({ Name = "Show camera assist FOV ring", Default = false, Flag 
 end -- Assist+ tab
 
 -- ---------------------------------------------------------------------------
--- Tab: Assist# (info, spin, checks, checks 2)
+-- Tab: Assist# (info, checks)
 -- ---------------------------------------------------------------------------
 do
 local AssistMore = Window:CreateTab("Assist#")
 
-local InfoSection = AssistMore:CreateSection("Assist Info", "Left")
+local InfoSection = AssistMore:CreateSection("Info", "Left")
 InfoSection:AddToggle({ Name = "Info text", Default = false, Flag = "ac_lab_assist_info_enable" })
 InfoSection:AddToggle({ Name = "Info follow mouse", Default = true, Flag = "ac_lab_assist_info_follow_mouse" })
 InfoSection:AddSlider({ Name = "Info text size", Min = 10, Max = 28, Default = 14, Step = 1, Flag = "ac_lab_assist_info_text_size" })
@@ -5993,28 +6795,12 @@ InfoSection:AddColorpicker({
     Flag = "ac_lab_assist_info_color",
 })
 
-local SpinSection = AssistMore:CreateSection("Assist Spin", "Left")
-SpinSection:AddToggle({ Name = "Spin while key held", Default = false, Flag = "ac_lab_assist_spin_enable" })
-SpinSection:AddSlider({ Name = "Spin speed", Min = 1, Max = 50, Default = 12, Step = 1, Flag = "ac_lab_assist_spin_speed" })
-SpinSection:AddSlider({ Name = "Spin degrees", Min = 1, Max = 360, Default = 180, Step = 1, Flag = "ac_lab_assist_spin_degrees" })
-SpinSection:AddDropdown({
-    Name = "Spin key", Options = AIM_KEYS, Default = "E",
-    Flag = "ac_lab_assist_spin_key",
-})
-
-local Checks = AssistMore:CreateSection("Assist Checks", "Right")
+local Checks = AssistMore:CreateSection("Checks", "Right")
 Checks:AddToggle({ Name = "Wall check", Default = false, Flag = "ac_lab_assist_check_wall" })
 Checks:AddToggle({ Name = "Friend check", Default = false, Flag = "ac_lab_assist_check_friend" })
 Checks:AddToggle({ Name = "Knock check", Default = false, Flag = "ac_lab_assist_check_knock" })
 Checks:AddToggle({ Name = "Forcefield check", Default = false, Flag = "ac_lab_assist_check_forcefield" })
-Checks:AddToggle({ Name = "Tool equipped", Default = false, Flag = "ac_lab_assist_check_tool" })
-
-local Checks2 = AssistMore:CreateSection("Assist Checks 2", "Right")
-Checks2:AddToggle({ Name = "Reload check", Default = false, Flag = "ac_lab_assist_check_reload" })
-Checks2:AddToggle({ Name = "Grab check", Default = false, Flag = "ac_lab_assist_check_grab" })
-Checks2:AddToggle({ Name = "Chat focused", Default = false, Flag = "ac_lab_assist_check_chat" })
-Checks2:AddToggle({ Name = "Unlock when knocked", Default = true, Flag = "ac_lab_assist_unlock_knocked" })
-Checks2:AddToggle({ Name = "Anti floor", Default = false, Flag = "ac_lab_assist_anti_floor" })
+Checks:AddToggle({ Name = "Unlock On Knock", Default = true, Flag = "ac_lab_assist_unlock_knocked" })
 
 end -- Assist# tab
 
@@ -6054,12 +6840,12 @@ Movement:AddToggle({
         if on then
             miscState.noclipConn = RunService.Stepped:Connect(function()
                 if flags.misc_noclip then
-                    miscNoclipParts()
+                    jujuMisc.miscNoclipParts()
                 end
             end)
             jujuNotify("Noclip on", 1)
         else
-            miscNoclipRestore()
+            jujuMisc.miscNoclipRestore()
             jujuNotify("Noclip off (collide restored)", 2)
         end
     end,
@@ -6070,13 +6856,13 @@ Movement:AddToggle({
     Flag = "misc_anti_sit",
     Callback = function(on)
         if not on then
-            miscClearAntiSit()
+            jujuMisc.miscClearAntiSit()
             jujuNotify("Anti sit off", 2)
             return
         end
-        local hum = miscHumanoid()
+        local hum = jujuMisc.miscHumanoid()
         if hum then
-            miscSetupAntiSit(hum)
+            jujuMisc.miscSetupAntiSit(hum)
         end
         jujuNotify("Anti sit on", 1)
     end,
@@ -6087,31 +6873,31 @@ Movement:AddToggle({
     Flag = "misc_anti_trip",
     Callback = function(on)
         if not on then
-            miscClearAntiTrip()
+            jujuMisc.miscClearAntiTrip()
             jujuNotify("Anti trip off", 2)
             return
         end
-        local hum = miscHumanoid()
+        local hum = jujuMisc.miscHumanoid()
         if hum then
-            miscSetupAntiTrip(hum)
+            jujuMisc.miscSetupAntiTrip(hum)
         end
         jujuNotify("Anti trip on", 1)
     end,
 })
 Movement:AddToggle({
-    Name = "Walk speed (CFrame drive)",
+    Name = "Walk speed",
     Default = false,
     Flag = "misc_walk_toggle",
-    Callback = function() miscApplyWalkJump() end,
+    Callback = function() jujuMisc.miscApplyWalkJump() end,
 })
 Movement:AddSlider({
     Name = "Move speed",
     Min = 8, Max = 500, Default = 32, Step = 1,
     Flag = "misc_walk_speed",
-    Callback = function() miscApplyWalkJump() end,
+    Callback = function() jujuMisc.miscApplyWalkJump() end,
 })
 Movement:AddToggle({
-    Name = "Speed boost (direct WalkSpeed)",
+    Name = "Speed boost",
     Default = false,
     Flag = "voltaic_speed_boost",
 })
@@ -6126,16 +6912,19 @@ Movement:AddSlider({
     Flag = "voltaic_jump_power",
 })
 Movement:AddToggle({
-    Name = "Jump",
+    Name = "Jump power override",
     Default = false,
-    Flag = "misc_jump_toggle",
-    Callback = function() miscApplyWalkJump() end,
+    Flag = "jump_power",
+    Callback = function()
+        if player.Character then
+            jujuMisc.jujuJumpHookCharacter(player.Character)
+        end
+    end,
 })
 Movement:AddSlider({
-    Name = "Jump power",
-    Min = 0, Max = 200, Default = 50, Step = 1,
-    Flag = "misc_jump_power",
-    Callback = function() miscApplyWalkJump() end,
+    Name = "Jump power value",
+    Min = 0, Max = 1000, Default = 50, Step = 1,
+    Flag = "jump_power_value",
 })
 
 local MovementExtra = MovementTab:CreateSection("Movement Extra", "Right")
@@ -6148,10 +6937,8 @@ MovementExtra:AddToggle({
             if miscState.savedGravity == nil then
                 miscState.savedGravity = Workspace.Gravity
             end
-            jujuNotify("Gravity override on", 1)
         else
             Workspace.Gravity = miscState.savedGravity or 196.2
-            jujuNotify("Gravity restored", 2)
         end
     end,
 })
@@ -6170,13 +6957,11 @@ MovementExtra:AddToggle({
             if cam and miscState.savedFov == nil then
                 miscState.savedFov = cam.FieldOfView
             end
-            jujuNotify("FOV override on", 1)
         else
             if cam and miscState.savedFov then
                 cam.FieldOfView = miscState.savedFov
             end
             miscState.savedFov = nil
-            jujuNotify("FOV restored", 2)
         end
     end,
 })
@@ -6190,12 +6975,9 @@ MovementExtra:AddToggle({
     Default = false,
     Flag = "misc_spinbot",
     Callback = function(on)
-        local hum = miscHumanoid()
+        local hum = jujuMisc.miscHumanoid()
         if not on and hum then
             hum.AutoRotate = true
-            jujuNotify("Spinbot off", 2)
-        elseif on then
-            jujuNotify("Spinbot on", 1)
         end
     end,
 })
@@ -6209,12 +6991,7 @@ MovementExtra:AddToggle({
     Default = false,
     Flag = "misc_fly",
     Callback = function(on)
-        if not on then
-            miscFlyStop()
-            jujuNotify("Fly off", 2)
-        else
-            jujuNotify("Fly on", 1)
-        end
+        if not on then jujuMisc.miscFlyStop() end
     end,
 })
 MovementExtra:AddSlider({
@@ -6223,74 +7000,55 @@ MovementExtra:AddSlider({
     Flag = "misc_fly_speed",
 })
 MovementExtra:AddToggle({
-    Name = "Orbit lock target",
-    Default = false,
-    Flag = "misc_orbit_target",
-    Callback = function(on)
-        if not on then
-            miscOrbitRestorePosition()
-            jujuNotify("Orbit off — returned to start position", 2)
-        else
-            miscOrbitCaptureStart()
-            jujuNotify("Orbit on — needs silent aim or camera assist target", 1)
-        end
-    end,
-})
-MovementExtra:AddToggle({
-    Name = "Spoof pos (local view stays)",
-    Default = false,
-    Flag = "misc_orbit_spoof_pos",
-})
-MovementExtra:AddSlider({
-    Name = "Orbit distance",
-    Min = 3, Max = 40, Default = 8, Step = 1, Suffix = " studs",
-    Flag = "misc_orbit_distance",
-})
-MovementExtra:AddSlider({
-    Name = "Orbit height",
-    Min = -10, Max = 25, Default = 0, Step = 1, Suffix = " studs",
-    Flag = "misc_orbit_height",
-})
-MovementExtra:AddSlider({
-    Name = "Orbit speed",
-    Min = 10, Max = 200, Default = 75, Step = 1, Suffix = "%",
-    Flag = "misc_orbit_speed",
-})
-MovementExtra:AddToggle({
     Name = "Remove jump cooldown",
     Default = false,
     Flag = "remove_jump_cooldown",
     Callback = function(on)
         if on and player.Character then
-            jujuJumpHookCharacter(player.Character)
+            jujuMisc.jujuJumpHookCharacter(player.Character)
         end
-        jujuNotify(on and "Jump cooldown bypass on" or "Jump cooldown bypass off", on and 1 or 2)
     end,
 })
 MovementExtra:AddToggle({
-    Name = "Remove slowdowns (WalkSpeed < 16 blocked)",
+    Name = "Remove slowdowns",
     Default = false,
     Flag = "remove_slowdowns",
 })
 MovementExtra:AddToggle({
-    Name = "Jump power override",
+    Name = "Aspect ratio stretch",
     Default = false,
-    Flag = "jump_power",
-    Callback = function()
-        if player.Character then
-            jujuJumpHookCharacter(player.Character)
+    Flag = "aspect_ratio",
+    Callback = function(on)
+        for i = 1, #heartbeat do
+            if heartbeat[i] == aspectRatioApplyLoop then
+                table.remove(heartbeat, i)
+                break
+            end
+        end
+        if on then
+            aspectLastTween = 1
+            aspectMultiplier = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+            jujuMisc.aspectRatioTweenTo(flags.aspect_ratio_value or 1)
+            heartbeat[#heartbeat + 1] = aspectRatioApplyLoop
+        else
+            jujuMisc.aspectRatioTweenTo(1, true)
         end
     end,
 })
 MovementExtra:AddSlider({
-    Name = "Jump power value",
-    Min = 0, Max = 1000, Default = 50, Step = 1,
-    Flag = "jump_power_value",
+    Name = "Aspect ratio value",
+    Min = 0.1, Max = 1.2, Default = 1, Step = 0.01, Suffix = "x",
+    Flag = "aspect_ratio_value",
+    Callback = function(value)
+        if flags.aspect_ratio then
+            jujuMisc.aspectRatioTweenTo(value)
+        end
+    end,
 })
 
 local NoSlowdowns = MovementTab:CreateSection("Rage Slowdowns", "Right")
 NoSlowdowns:AddToggle({
-    Name = "No movement slowdowns (ragebot hook)",
+    Name = "No movement slowdowns",
     Default = false,
     Flag = "ac_rage_no_slowdowns",
 })
@@ -6311,9 +7069,9 @@ EspMain:AddToggle({
     Callback = function(on)
         if on then
             miscState.espHbAcc = 0
-            miscEspRefresh()
+            jujuMisc.miscEspRefresh()
         else
-            miscEspClearAll()
+            jujuMisc.miscEspClearAll()
             miscState.espHbAcc = 0
             jujuNotify("ESP off", 2)
         end
@@ -6323,26 +7081,26 @@ EspMain:AddColorpicker({
     Name = "ESP fill color",
     Default = Color3.fromRGB(140, 190, 255),
     Flag = "misc_esp_color",
-    Callback = function() if flags.misc_esp then miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
 EspMain:AddDropdown({
     Name = "ESP style",
     Options = { "Filled (highlight)", "Outline (silhouette)", "Bounding box" },
     Default = "Filled (highlight)",
     Flag = "misc_esp_style",
-    Callback = function() if flags.misc_esp then miscState.espHbAcc = 0; miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then miscState.espHbAcc = 0; jujuMisc.miscEspRefresh() end end,
 })
 EspMain:AddSlider({
     Name = "ESP outline / box line transparency",
     Min = 0, Max = 1, Default = 0.2, Step = 0.01,
     Flag = "misc_esp_wire_trn",
-    Callback = function() if flags.misc_esp then miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
 EspMain:AddToggle({
     Name = "ESP names",
     Default = true,
     Flag = "misc_esp_names",
-    Callback = function() if flags.misc_esp then miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
 EspMain:AddToggle({
     Name = "ESP rainbow (slow)",
@@ -6351,7 +7109,7 @@ EspMain:AddToggle({
     Callback = function()
         if flags.misc_esp then
             miscState.espHbAcc = 0
-            miscEspRefresh()
+            jujuMisc.miscEspRefresh()
         end
     end,
 })
@@ -6366,120 +7124,245 @@ EspImage:AddToggle({
     Name = "ESP image mode (replaces highlight)",
     Default = false,
     Flag = "misc_esp_image_mode",
-    Callback = function() if flags.misc_esp then miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
-EspImage:AddTextbox({
+local elEspImgId = EspImage:AddTextbox({
     Name = "ESP image rbxassetid (Imgur URLs do not work — upload to Roblox)",
     Default = "",
     Placeholder = "rbxassetid://...",
     Flag = "!misc_esp_image_id",
-    Callback = function() if flags.misc_esp then miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
+local espPresetOptions = {}
+for k in pairs(jujuMisc.MISC_ESP_IMAGE_PRESET_IDS) do
+    espPresetOptions[#espPresetOptions + 1] = k
+end
+table.sort(espPresetOptions, function(a, b)
+    if a == "Custom (textbox below)" then return true end
+    if b == "Custom (textbox below)" then return false end
+    return a < b
+end)
 EspImage:AddDropdown({
     Name = "ESP image quick preset",
-    Options = {
-        "Custom (textbox below)",
-        "Built-in: UI placeholder",
-        "Decal: Doge",
-        "Decal: Epic Duck",
-        "Decal: Elmo fire",
-        "Decal: Rickroll",
-    },
+    Options = espPresetOptions,
     Default = "Custom (textbox below)",
     Flag = "misc_esp_image_preset",
     Callback = function(val)
         local opt = type(val) == "table" and val[1] or val
         if opt == "Custom (textbox below)" then return end
-        local preset = MISC_ESP_IMAGE_PRESET_IDS[opt]
+        local preset = jujuMisc.MISC_ESP_IMAGE_PRESET_IDS[opt]
         if type(preset) ~= "string" or preset == "" then return end
         flags["!misc_esp_image_id"] = preset
-        if flags.misc_esp then miscEspRefresh() end
+        if elEspImgId and elEspImgId.Set then elEspImgId:Set(preset) end
+        if flags.misc_esp then jujuMisc.miscEspRefresh() end
     end,
 })
 EspImage:AddSlider({
     Name = "ESP billboard image size",
     Min = 64, Max = 400, Default = 180, Step = 1,
     Flag = "misc_esp_image_px",
-    Callback = function() if flags.misc_esp then miscEspRefresh() end end,
+    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
 
 end -- ESP tab
 
 -- ---------------------------------------------------------------------------
--- Tab: Crown (HVH-style head crown via Drawing API)
+-- Tab: Beams (in-game beam skin changer)
+-- Three-pronged approach to force the selected beam to show:
+-- 1. Sets Beam.Texture on all beams inside the player's tools (guns)
+-- 2. Watches BULLET_RAYS objects in Workspace.Ignored and swaps the GunBeam
+-- 3. Pre-populates DataFolder.InventoryData.BulletBeams with the selected model
 -- ---------------------------------------------------------------------------
 do
-local CrownTab = Window:CreateTab("Crown")
+local BeamsTab = Window:CreateTab("Beams")
 
-local CrownMain = CrownTab:CreateSection("Head Crown", "Left")
-CrownMain:AddToggle({
-    Name = "Local head crown (Drawing)",
-    Default = false,
-    Flag = "misc_head_crown",
-    Callback = function(on)
-        if on then
-            miscCrownStart()
-            jujuNotify("Head crown on (HVH-style cone)", 1)
-        else
-            miscCrownDestroy()
-            jujuNotify("Head crown off", 2)
+local BeamSection = BeamsTab:CreateSection("Bullet Beams", "Left")
+
+-- Scan ReplicatedStorage.BulletBeams for available beam names
+local function scanGameBeams()
+    local beams = ReplicatedStorage:FindFirstChild("BulletBeams")
+    if not beams then return { "None" } end
+    local list = {}
+    for _, child in ipairs(beams:GetChildren()) do
+        list[#list + 1] = child.Name
+    end
+    table.sort(list)
+    if #list == 0 then list = { "None" } end
+    return list
+end
+
+local function getSelectedBeam()
+    local name = flags.beam_skin_pick
+    if type(name) == "table" then name = name[1] end
+    if not name or name == "None" then return nil end
+    return name
+end
+
+-- 1. Set Beam.Texture on all beams inside a tool
+local function applyBulletsToTool(tool)
+    if not tool or not tool:IsA("Tool") then return end
+    local beamName = getSelectedBeam()
+    if not beamName then return end
+    for _, b in ipairs(tool:GetDescendants()) do
+        if b:IsA("Beam") then
+            pcall(function() b.Texture = beamName end)
+        end
+    end
+end
+
+-- Apply to all tools in character + backpack
+local function applyBulletsAll()
+    local beamName = getSelectedBeam()
+    if not beamName then return end
+    local char = player.Character
+    if char then
+        for _, t in ipairs(char:GetChildren()) do
+            if t:IsA("Tool") then applyBulletsToTool(t) end
+        end
+    end
+    local bp = player:FindFirstChildOfClass("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") then applyBulletsToTool(t) end
+        end
+    end
+end
+
+-- 2. Watch BULLET_RAYS in Workspace.Ignored and swap the GunBeam
+local bulletRaysConn = nil
+local function installBulletRaysWatcher()
+    if bulletRaysConn then return end
+    local ignored = Workspace:FindFirstChild("Ignored")
+    if not ignored then
+        task.delay(2, installBulletRaysWatcher)
+        return
+    end
+
+    local function processBulletRays(raysObj)
+        if not raysObj or raysObj.Name ~= "BULLET_RAYS" then return end
+        local beamName = getSelectedBeam()
+        if not beamName then return end
+
+        -- Find the GunBeam
+        local gunBeam = raysObj:FindFirstChild("GunBeam")
+        if not gunBeam or not gunBeam:IsA("Beam") then
+            gunBeam = raysObj:FindFirstChildWhichIsA("Beam", true)
+        end
+        if not gunBeam then return end
+
+        -- Set the texture to the beam name
+        pcall(function() gunBeam.Texture = beamName end)
+    end
+
+    bulletRaysConn = ignored.ChildAdded:Connect(processBulletRays)
+    for _, child in ipairs(ignored:GetChildren()) do
+        if child.Name == "BULLET_RAYS" then
+            task.spawn(processBulletRays, child)
+        end
+    end
+end
+
+-- 3. Pre-populate DataFolder.InventoryData.BulletBeams with the selected model
+local function getPlayerBeamFolder()
+    local dataFolder = player:FindFirstChild("DataFolder")
+    if not dataFolder then return nil end
+    local inv = dataFolder:FindFirstChild("InventoryData")
+    if not inv then return nil end
+    return inv:FindFirstChild("BulletBeams")
+end
+
+local function equipBeamModel(beamName)
+    if not beamName or beamName == "None" then return false end
+    local source = ReplicatedStorage:FindFirstChild("BulletBeams")
+    if not source then return false end
+    local template = source:FindFirstChild(beamName)
+    if not template then return false end
+
+    local playerBeams = getPlayerBeamFolder()
+    if not playerBeams then return false end
+
+    -- Remove existing beam models
+    for _, child in ipairs(playerBeams:GetChildren()) do
+        if child:IsA("Model") then
+            pcall(function() child:Destroy() end)
+        end
+    end
+
+    -- Clone the selected beam model
+    local clone = template:Clone()
+    clone.Parent = playerBeams
+    return true
+end
+
+-- Watch for tools being added
+local beamProcessed = setmetatable({}, { __mode = "k" })
+local function onToolAdded(tool)
+    if beamProcessed[tool] then return end
+    beamProcessed[tool] = true
+    applyBulletsToTool(tool)
+end
+
+-- Start all watchers
+task.defer(function()
+    -- Tool watcher
+    local bp = player:FindFirstChildOfClass("Backpack")
+    if bp then
+        bp.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") then onToolAdded(child) end
+        end)
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") then onToolAdded(t) end
+        end
+    end
+    if player.Character then
+        player.Character.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") then onToolAdded(child) end
+        end)
+        for _, t in ipairs(player.Character:GetChildren()) do
+            if t:IsA("Tool") then onToolAdded(t) end
+        end
+    end
+    player.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        char.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") then onToolAdded(child) end
+        end)
+    end)
+
+    -- BULLET_RAYS watcher
+    installBulletRaysWatcher()
+end)
+
+local beamOptions = scanGameBeams()
+BeamSection:AddDropdown({
+    Name = "Beam skin",
+    Options = beamOptions,
+    Default = "None",
+    Flag = "beam_skin_pick",
+    Callback = function(val)
+        local name = type(val) == "table" and val[1] or val
+        if name and name ~= "None" then
+            applyBulletsAll()
+            equipBeamModel(name)
+            jujuNotify("Beam: " .. name, 1)
         end
     end,
 })
-CrownMain:AddToggle({
-    Name = "Crown rainbow",
-    Default = false,
-    Flag = "misc_head_crown_rainbow",
-})
-CrownMain:AddSlider({
-    Name = "Crown sides",
-    Min = 8, Max = 32, Default = 16, Step = 1,
-    Flag = "misc_head_crown_sides",
-})
-CrownMain:AddColorpicker({
-    Name = "Crown color",
-    Default = Color3.fromRGB(128, 18, 255),
-    Flag = "misc_head_crown_color",
-})
-CrownMain:AddSlider({
-    Name = "Crown ring transparency",
-    Min = 0, Max = 1, Default = 0, Step = 0.01,
-    Flag = "misc_head_crown_ring_trn",
-})
-CrownMain:AddSlider({
-    Name = "Crown fill transparency",
-    Min = 0, Max = 1, Default = 0.35, Step = 0.01,
-    Flag = "misc_head_crown_hat_trn",
+BeamSection:AddButton({
+    Name = "Apply to all guns",
+    Callback = function()
+        local name = getSelectedBeam()
+        if name then
+            applyBulletsAll()
+            equipBeamModel(name)
+            jujuNotify("Beam applied: " .. name, 1)
+        else
+            jujuNotify("Select a beam first", 3)
+        end
+    end,
 })
 
-local CrownShape = CrownTab:CreateSection("Crown Shape", "Right")
-CrownShape:AddSlider({
-    Name = "Crown height",
-    Min = 0.1, Max = 3, Default = 0.75, Step = 0.01,
-    Flag = "misc_head_crown_height",
-})
-CrownShape:AddSlider({
-    Name = "Crown radius",
-    Min = 0.3, Max = 3, Default = 1, Step = 0.01,
-    Flag = "misc_head_crown_radius",
-})
-CrownShape:AddSlider({
-    Name = "Crown Y offset",
-    Min = 0, Max = 3, Default = 0.75, Step = 0.01,
-    Flag = "misc_head_crown_off_y",
-})
-CrownShape:AddSlider({
-    Name = "Crown min zoom (hide in first-person)",
-    Min = 0, Max = 10, Default = 0.5, Step = 0.1,
-    Flag = "misc_head_crown_min_zoom",
-})
-
-end -- Crown tab
-
--- Auto-start crown if loaded with it on
-if flags.misc_head_crown then
-    task.defer(miscCrownStart)
-end
+end -- Beams tab
 
 -- ---------------------------------------------------------------------------
 -- Tab: Misc (library config, credits)
@@ -6533,8 +7416,8 @@ ConfigSection:AddButton({
     Callback = function()
         local name = elConfigName:Get()
         if name and name ~= "" then
-            configSave(name)
-            elConfigList:Refresh(configListFiles())
+            jujuMisc.configSave(name)
+            elConfigList:Refresh(jujuMisc.configListFiles())
         else
             jujuNotify("Enter a config name first", 3)
         end
@@ -6545,7 +7428,7 @@ ConfigSection:AddButton({
     Callback = function()
         local name = elConfigList:Get()
         if name and name ~= "(none)" and name ~= "" then
-            configLoad(name)
+            jujuMisc.configLoad(name)
         else
             jujuNotify("Select a config to load", 3)
         end
@@ -6556,8 +7439,8 @@ ConfigSection:AddButton({
     Callback = function()
         local name = elConfigList:Get()
         if name and name ~= "(none)" and name ~= "" then
-            configDelete(name)
-            elConfigList:Refresh(configListFiles())
+            jujuMisc.configDelete(name)
+            elConfigList:Refresh(jujuMisc.configListFiles())
         else
             jujuNotify("Select a config to delete", 3)
         end
@@ -6566,7 +7449,7 @@ ConfigSection:AddButton({
 ConfigSection:AddButton({
     Name = "Refresh list",
     Callback = function()
-        local files = configListFiles()
+        local files = jujuMisc.configListFiles()
         if #files == 0 then
             files = { "(none)" }
         end
@@ -6576,24 +7459,11 @@ ConfigSection:AddButton({
 })
 -- Populate the dropdown on load
 task.defer(function()
-    local files = configListFiles()
+    local files = jujuMisc.configListFiles()
     if #files > 0 then
         elConfigList:Refresh(files)
     end
 end)
-
-local InfoSectionMisc = MiscTab:CreateSection("Info", "Right")
-InfoSectionMisc:AddLabel("RisqueUI v2.0 | juju port")
-InfoSectionMisc:AddLabel("Right-click any row to bind a key.")
-InfoSectionMisc:AddLabel("RightShift toggles the menu by default.")
-InfoSectionMisc:AddButton({
-    Name = "Rejoin Server",
-    Callback = function()
-        jujuNotify("Risque", "Rejoining...", 2)
-        task.wait(0.5)
-        game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
-    end,
-})
 
 -- ============================================================================
 -- AC lab runtime wiring — drives the silent aim state cache each heartbeat.
