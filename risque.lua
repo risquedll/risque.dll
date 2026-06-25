@@ -2105,8 +2105,8 @@ heartbeat[#heartbeat + 1] = function(dt)
             if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.C) then
                 mv = mv - Vector3.new(0, 1, 0)
             end
-            local sp = (flags.misc_fly_speed ~= nil and flags.misc_fly_speed) or 55
-            sp = math.clamp(sp, 5, 400)
+            local sp = (flags.misc_fly_speed ~= nil and flags.misc_fly_speed) or 120
+            sp = math.clamp(sp, 5, 2000)
             if mv.Magnitude > 1e-4 then
                 hrp.AssemblyLinearVelocity = mv.Unit * sp
             else
@@ -3575,8 +3575,6 @@ do
             acLabState.aimPickAttempted = false
             return
         end
-        -- Only pick a target on the first frame the key is held.
-        -- If no one was in the crosshair, don't try again until key release.
         if not acLabState.aimKeyWasHeld then
             acLabState.aimKeyWasHeld = true
             acLabState.aimPickAttempted = false
@@ -3614,16 +3612,12 @@ do
         local okStep, errStep = pcall(function()
             local aimPos = nil
             local aimPart = nil
-            -- Only pick once per key press. If no target was found on the first
-            -- frame, don't try again — wait for key release + re-press.
             if not acLabState.aimPickAttempted then
                 acLabState.aimPickAttempted = true
-                if not acLabState.stickyAssistModel and not acLabState.stickyAssistPart then
-                    local pick = acLabPickAssistPart(cam)
-                    if pick then
-                        acLabState.stickyAssistPart = pick
-                        acLabState.stickyAssistModel = pick:FindFirstAncestorOfClass("Model")
-                    end
+                local pick = acLabPickAssistPart(cam)
+                if pick then
+                    acLabState.stickyAssistPart = pick
+                    acLabState.stickyAssistModel = pick:FindFirstAncestorOfClass("Model")
                 end
             elseif acLabState.stickyAssistModel and not acLabState.stickyAssistModel.Parent then
                 acLabStickyClear()
@@ -5547,6 +5541,8 @@ local function configSave(name)
     end
     name = name:gsub("[/\\:*?\"<>|]", "_")
     local data = {}
+    -- Save the menu toggle key
+    data["_menu_toggle_key"] = Library.ToggleKey and Library.ToggleKey.Name or "RightShift"
     for k, v in pairs(Library.Flags) do
         if type(k) == "string" and k:sub(1, 1) ~= "_" then
             if typeof(v) == "Color3" then
@@ -5630,6 +5626,14 @@ local function configLoad(name)
                 -- keep tables as-is (e.g. ac_lab_silent_methods)
                 Library.Flags[k] = v
             end
+        end
+    end
+    -- Restore menu toggle key
+    if data["_menu_toggle_key"] then
+        local keyName = data["_menu_toggle_key"]
+        local key = Enum.KeyCode[keyName]
+        if key then
+            Library.ToggleKey = key
         end
     end
     -- Apply to UI elements via the config registry
@@ -5926,15 +5930,16 @@ local function wxRainMakeEmitter()
     pe.Brightness = 1
     pe.Drag = 0.05
     pe.SpreadAngle = Vector2.new(1, 1)
-    pe.Size = NumberSequence.new(2)
+    pe.Size = NumberSequence.new(5)
     pe.Speed = NumberRange.new(wxRainSpeed(), wxRainSpeed() * 1.1)
     pe.Lifetime = NumberRange.new(3, 5)
-    pe.Rate = wxRainRate()
+    pe.Rate = wxRainRate() * 3
     pe.Enabled = true
     pe.LockedToPart = true
     pe.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.3),
-        NumberSequenceKeypoint.new(1, 0.8),
+        NumberSequenceKeypoint.new(0, 0.1),
+        NumberSequenceKeypoint.new(0.5, 0.2),
+        NumberSequenceKeypoint.new(1, 0.5),
     })
     pe.Orientation = Enum.ParticleOrientation.FacingCameraWorldUp
     pe.Color = ColorSequence.new(wxRainColor3())
@@ -6345,11 +6350,7 @@ CameraAssist:AddSlider({
     Min = 0, Max = 200, Default = 12, Step = 1, Suffix = "%",
     Flag = "ac_lab_predict_y",
 })
-CameraAssist:AddSlider({
-    Name = "Assist speed",
-    Min = 0.02, Max = 5, Default = 0.38, Step = 0.01,
-    Flag = "ac_lab_smooth_alpha",
-})
+
 
 -- Auto-connect camera assist if loaded with it on
 if flags.ac_lab_legit_smooth then
@@ -6530,20 +6531,7 @@ Shake:AddSlider({ Name = "Shake axis X", Min = 0, Max = 20, Default = 2, Step = 
 Shake:AddSlider({ Name = "Shake axis Y", Min = 0, Max = 20, Default = 2, Step = 0.1, Flag = "ac_lab_assist_shake_y" })
 Shake:AddSlider({ Name = "Shake axis Z", Min = 0, Max = 20, Default = 1, Step = 0.1, Flag = "ac_lab_assist_shake_z" })
 
-local FovRing = AssistPlus:CreateSection("Assist FOV Ring", "Right")
-FovRing:AddToggle({ Name = "FOV circle", Default = false, Flag = "ac_lab_assist_fov_enable" })
-FovRing:AddSlider({ Name = "FOV radius", Min = 5, Max = 360, Default = 120, Step = 1, Flag = "ac_lab_assist_fov_radius" })
-FovRing:AddSlider({ Name = "FOV thickness", Min = 1, Max = 8, Default = 1, Step = 1, Flag = "ac_lab_assist_fov_thickness" })
-FovRing:AddSlider({ Name = "FOV segments", Min = 8, Max = 128, Default = 64, Step = 1, Flag = "ac_lab_assist_fov_segments" })
-FovRing:AddToggle({ Name = "FOV follow mouse", Default = true, Flag = "ac_lab_assist_fov_follow_mouse" })
-FovRing:AddSlider({ Name = "FOV transparency", Min = 0, Max = 1, Default = 0.35, Step = 0.01, Flag = "ac_lab_assist_fov_transparency" })
-FovRing:AddColorpicker({
-    Name = "FOV color", Default = Color3.fromRGB(120, 200, 255),
-    Flag = "ac_lab_assist_fov_color",
-})
--- Rage FOV ring visualization toggles (ported from juju rageVis section)
-FovRing:AddToggle({ Name = "Show silent aim FOV ring", Default = false, Flag = "ac_rage_show_silent_fov" })
-FovRing:AddToggle({ Name = "Show camera assist FOV ring", Default = false, Flag = "ac_rage_show_assist_fov" })
+
 
 end -- Assist+ tab
 
@@ -6553,14 +6541,7 @@ end -- Assist+ tab
 do
 local AssistMore = Window:CreateTab("Assist#")
 
-local InfoSection = AssistMore:CreateSection("Info", "Left")
-InfoSection:AddToggle({ Name = "Info text", Default = false, Flag = "ac_lab_assist_info_enable" })
-InfoSection:AddToggle({ Name = "Info follow mouse", Default = true, Flag = "ac_lab_assist_info_follow_mouse" })
-InfoSection:AddSlider({ Name = "Info text size", Min = 10, Max = 28, Default = 14, Step = 1, Flag = "ac_lab_assist_info_text_size" })
-InfoSection:AddColorpicker({
-    Name = "Info color", Default = Color3.fromRGB(255, 255, 255),
-    Flag = "ac_lab_assist_info_color",
-})
+
 
 local Checks = AssistMore:CreateSection("Checks", "Right")
 Checks:AddToggle({ Name = "Wall check", Default = false, Flag = "ac_lab_assist_check_wall" })
@@ -6764,7 +6745,7 @@ MovementExtra:AddToggle({
 })
 MovementExtra:AddSlider({
     Name = "Fly speed",
-    Min = 10, Max = 200, Default = 55, Step = 1,
+    Min = 10, Max = 1000, Default = 120, Step = 1,
     Flag = "misc_fly_speed",
 })
 MovementExtra:AddToggle({
@@ -6814,12 +6795,7 @@ MovementExtra:AddSlider({
     end,
 })
 
-local NoSlowdowns = MovementTab:CreateSection("Rage Slowdowns", "Right")
-NoSlowdowns:AddToggle({
-    Name = "No movement slowdowns",
-    Default = false,
-    Flag = "ac_rage_no_slowdowns",
-})
+
 
 
 MovementExtra:AddButton({
@@ -6894,51 +6870,6 @@ EspMain:AddSlider({
     Name = "ESP rainbow speed",
     Min = 0.03, Max = 0.35, Default = 0.11, Step = 0.001,
     Flag = "misc_esp_rainbow_speed",
-})
-
-local EspImage = EspTab:CreateSection("ESP Image Mode", "Left")
-EspImage:AddToggle({
-    Name = "ESP image mode (replaces highlight)",
-    Default = false,
-    Flag = "misc_esp_image_mode",
-    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
-})
-local elEspImgId = EspImage:AddTextbox({
-    Name = "ESP image rbxassetid (Imgur URLs do not work — upload to Roblox)",
-    Default = "",
-    Placeholder = "rbxassetid://...",
-    Flag = "!misc_esp_image_id",
-    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
-})
-local espPresetOptions = {}
-for k in pairs(jujuMisc.MISC_ESP_IMAGE_PRESET_IDS) do
-    espPresetOptions[#espPresetOptions + 1] = k
-end
-table.sort(espPresetOptions, function(a, b)
-    if a == "Custom (textbox below)" then return true end
-    if b == "Custom (textbox below)" then return false end
-    return a < b
-end)
-EspImage:AddDropdown({
-    Name = "ESP image quick preset",
-    Options = espPresetOptions,
-    Default = "Custom (textbox below)",
-    Flag = "misc_esp_image_preset",
-    Callback = function(val)
-        local opt = type(val) == "table" and val[1] or val
-        if opt == "Custom (textbox below)" then return end
-        local preset = jujuMisc.MISC_ESP_IMAGE_PRESET_IDS[opt]
-        if type(preset) ~= "string" or preset == "" then return end
-        flags["!misc_esp_image_id"] = preset
-        if elEspImgId and elEspImgId.Set then elEspImgId:Set(preset) end
-        if flags.misc_esp then jujuMisc.miscEspRefresh() end
-    end,
-})
-EspImage:AddSlider({
-    Name = "ESP billboard image size",
-    Min = 64, Max = 400, Default = 180, Step = 1,
-    Flag = "misc_esp_image_px",
-    Callback = function() if flags.misc_esp then jujuMisc.miscEspRefresh() end end,
 })
 
 end -- ESP tab
@@ -7230,6 +7161,14 @@ LibrarySection:AddButton({
 LibrarySection:AddButton({
     Name = "Unload Risque",
     Callback = function() Library:Destroy() end,
+})
+LibrarySection:AddButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        jujuNotify("Rejoining...", 1)
+        task.wait(0.5)
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LP)
+    end,
 })
 
 local ConfigSection = MiscTab:CreateSection("Config", "Right")
