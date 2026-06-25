@@ -3573,6 +3573,31 @@ do
             acLabStickyClear()
             return
         end
+        -- Death position lock: keep aiming at last known position with smooth easing
+        if flags.ac_lab_lock_death_pos and acLabState.deathLockPos and tick() < (acLabState.deathLockUntil or 0) then
+            local goal = CFrame.lookAt(cam.CFrame.Position, acLabState.deathLockPos)
+            local alpha = flags.ac_lab_smooth_alpha or 0.38
+            -- Use easing for smoother transition
+            local useAddonSmooth = flags.ac_lab_assist_smooth_x ~= nil or flags.ac_lab_assist_smooth_y ~= nil
+            if useAddonSmooth then
+                local sx = math.clamp((flags.ac_lab_assist_smooth_x ~= nil and flags.ac_lab_assist_smooth_x or 35) / 100, 0.003, 1)
+                local style = acLabFlagOne("ac_lab_assist_easing_style", "Quad")
+                local dir = acLabFlagOne("ac_lab_assist_easing_dir", "Out")
+                alpha = acLabAssistEase(sx, style, dir)
+            else
+                alpha = math.clamp(alpha, 0.02, 5)
+                if alpha >= 0.98 then
+                    cam.CFrame = goal
+                    return
+                end
+            end
+            cam.CFrame = cam.CFrame:Lerp(goal, math.clamp(alpha, 0.002, 1))
+            return
+        end
+        if acLabState.deathLockPos and tick() >= (acLabState.deathLockUntil or 0) then
+            acLabState.deathLockPos = nil
+            acLabState.deathLockUntil = nil
+        end
         -- Cooldown after Unlock On Knock triggers — don't pick a new target
         if acLabState.unlockCooldown and tick() < acLabState.unlockCooldown then
             return
@@ -3613,6 +3638,11 @@ do
                     if h and h.Health < 1 then
                         acLabStickyClear()
                         acLabState.unlockCooldown = tick() + 1.0
+                        -- Lock on death position: stay aimed at where they died for 1 extra second
+                        if flags.ac_lab_lock_death_pos and aimPos then
+                            acLabState.deathLockPos = aimPos
+                            acLabState.deathLockUntil = tick() + 1.0
+                        end
                         return
                     end
                 end
@@ -4261,10 +4291,10 @@ do
 -- ---------------------------------------------------------------------------
 local WX_SNOW_TEXTURE = "http://www.roblox.com/asset/?id=99851851"
 local WX_SNOW_SOUND = "rbxassetid://9125402735"
-local WX_SNOW_FLAKE_SIZE = 0.9
+local WX_SNOW_FLAKE_SIZE = 1.15
 local WX_SNOW_GRID_SPACING = 95
 local WX_SNOW_GRID_PAD = 60
-local WX_SNOW_HEIGHT_ABOVE_MAP = 65
+local WX_SNOW_HEIGHT_ABOVE_MAP = 75
 local WX_SNOW_MAX_CELLS = 81
 local WX_SNOW_INDOOR_CEILING = 42
 
@@ -5845,6 +5875,290 @@ WorldSnow:AddToggle({
     Callback = function() if jujuMisc.wxSnow.active then jujuMisc.wxSnowStep(0) end end,
 })
 
+-- World Rain engine (similar to snow — particle grid, no bullet collision)
+local WX_RAIN_TEXTURE = "http://www.roblox.com/asset/?id=99851851"
+local WX_RAIN_SOUND = "rbxassetid://1516791621"
+local WX_RAIN_SPLASH_TEXTURE = "rbxassetid://1822856633"
+local wxRain = {
+    active = false, folder = nil, cells = {}, emitters = {}, splashes = {},
+    sound = nil, conns = {},
+}
+
+local function wxRainEnsureFolder()
+    local f = Workspace:FindFirstChild("JujuWorldRainFX")
+    if not f then
+        f = Instance.new("Folder")
+        f.Name = "JujuWorldRainFX"
+        f.Parent = Workspace
+    end
+    wxRain.folder = f
+    return f
+end
+
+local function wxRainColor3()
+    local c = flags.wx_world_rain_color
+    if typeof(c) == "Color3" then return c end
+    return Color3.fromRGB(180, 200, 255)
+end
+
+local function wxRainRate()
+    local v = tonumber(flags.wx_world_rain_rate)
+    if not v then return 80 end
+    return math.clamp(v, 1, 200)
+end
+
+local function wxRainSpeed()
+    local v = tonumber(flags.wx_world_rain_speed)
+    if not v then return 80 end
+    return math.clamp(v, 10, 200)
+end
+
+local function wxRainMakeEmitter()
+    local pe = Instance.new("ParticleEmitter")
+    pe.Name = "RainDrop"
+    pe.Texture = WX_RAIN_TEXTURE
+    pe.EmissionDirection = Enum.NormalId.Bottom
+    pe.LightEmission = 0.82
+    pe.LightInfluence = 0.35
+    pe.Brightness = 2.1
+    pe.Drag = 0.35
+    pe.SpreadAngle = Vector2.new(18, 18)
+    pe.Rotation = NumberRange.new(0, 360)
+    pe.RotSpeed = NumberRange.new(-20, 20)
+    pe.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1.15 * 0.55),
+        NumberSequenceKeypoint.new(0.45, 1.15),
+        NumberSequenceKeypoint.new(1, 1.15 * 0.35),
+    })
+    pe.Speed = NumberRange.new(wxRainSpeed())
+    pe.Lifetime = NumberRange.new(2.5, 4.5)
+    pe.Rate = wxRainRate()
+    pe.Enabled = true
+    pe.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.18),
+        NumberSequenceKeypoint.new(0.08, 0),
+        NumberSequenceKeypoint.new(0.85, 0.06),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    pe.Orientation = Enum.ParticleOrientation.FacingCamera
+    pe.Color = ColorSequence.new(wxRainColor3())
+    return pe
+end
+
+local function wxRainMakeSplash()
+    local pe = Instance.new("ParticleEmitter")
+    pe.Name = "RainSplash"
+    pe.Texture = WX_RAIN_SPLASH_TEXTURE
+    pe.LightEmission = 0.1
+    pe.LightInfluence = 0.9
+    pe.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.4, 1.5),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    pe.Rotation = NumberRange.new(0, 360)
+    pe.Lifetime = NumberRange.new(0.15, 0.25)
+    pe.Rate = 0
+    pe.Speed = NumberRange.new(0)
+    pe.Color = ColorSequence.new(wxRainColor3())
+    pe.Orientation = Enum.ParticleOrientation.FacingCamera
+    return pe
+end
+
+local function wxRainApplySettings()
+    local rate = wxRainRate()
+    local speed = wxRainSpeed()
+    local col = ColorSequence.new(wxRainColor3())
+    for _, pe in ipairs(wxRain.emitters) do
+        if pe and pe.Parent then
+            pe.Rate = rate
+            pe.Speed = NumberRange.new(speed * 0.9, speed * 1.1)
+            pe.Color = col
+        end
+    end
+    for _, sp in ipairs(wxRain.splashes) do
+        if sp and sp.Parent then sp.Color = col end
+    end
+end
+
+local function wxRainMeasureMap()
+    local root = Workspace:FindFirstChild("FFA_MAP") or Workspace:FindFirstChild("Map") or Workspace
+    local minX, minZ = math.huge, math.huge
+    local maxX, maxZ, maxY = -math.huge, -math.huge, -math.huge
+    local found = false
+    for _, desc in ipairs(root:GetDescendants()) do
+        if desc:IsA("BasePart") then
+            found = true
+            local p = desc.Position
+            local h = desc.Size * 0.5
+            minX = math.min(minX, p.X - h.X)
+            maxX = math.max(maxX, p.X + h.X)
+            minZ = math.min(minZ, p.Z - h.Z)
+            maxZ = math.max(maxZ, p.Z + h.Z)
+            maxY = math.max(maxY, p.Y + h.Y)
+        end
+    end
+    if not found then
+        local cam = Workspace.CurrentCamera
+        local p = cam and cam.CFrame.Position or Vector3.zero
+        return { minX = p.X - 220, maxX = p.X + 220, minZ = p.Z - 220, maxZ = p.Z + 220, rainY = p.Y + 90 }
+    end
+    return {
+        minX = minX - 60, maxX = maxX + 60,
+        minZ = minZ - 60, maxZ = maxZ + 60,
+        rainY = maxY + 75,
+    }
+end
+
+local function wxRainSetSound(on)
+    if on and flags.wx_world_rain_sound ~= false then
+        if not wxRain.sound or not wxRain.sound.Parent then
+            wxRain.sound = Instance.new("Sound")
+            wxRain.sound.Name = "JujuWxRainWind"
+            wxRain.sound.SoundId = WX_RAIN_SOUND
+            wxRain.sound.Looped = true
+            wxRain.sound.Volume = 0.18
+            wxRain.sound.Parent = game:GetService("SoundService")
+        end
+        pcall(function() wxRain.sound:Play() end)
+    elseif wxRain.sound then
+        pcall(function() wxRain.sound:Stop() end)
+    end
+end
+
+local function wxRainBuildField()
+    wxRainEnsureFolder()
+    if #wxRain.cells > 0 then return end
+    local bounds = wxRainMeasureMap()
+    local spanX = bounds.maxX - bounds.minX
+    local spanZ = bounds.maxZ - bounds.minZ
+    local cols = math.max(1, math.ceil(spanX / 95))
+    local rows = math.max(1, math.ceil(spanZ / 95))
+    while cols * rows > 81 do
+        if cols >= rows and cols > 1 then cols -= 1
+        elseif rows > 1 then rows -= 1
+        else break end
+    end
+    local stepX = spanX / cols
+    local stepZ = spanZ / rows
+    local cellSize = Vector3.new(math.max(stepX, 40), 4, math.max(stepZ, 40))
+    wxRain.cells = {}
+    wxRain.emitters = {}
+    wxRain.splashes = {}
+    for row = 0, rows - 1 do
+        for col = 0, cols - 1 do
+            local x = bounds.minX + stepX * (col + 0.5)
+            local z = bounds.minZ + stepZ * (row + 0.5)
+            local part = Instance.new("Part")
+            part.Name = "JujuWxRainCell"
+            part.Anchored = true
+            part.CanCollide = false
+            part.CanQuery = false
+            part.CanTouch = false
+            part.CastShadow = false
+            part.Transparency = 1
+            part.Size = cellSize
+            part.CFrame = CFrame.new(x, bounds.rainY, z)
+            part.Parent = wxRain.folder
+            local pe = wxRainMakeEmitter()
+            pe.Parent = part
+            wxRain.cells[#wxRain.cells + 1] = part
+            wxRain.emitters[#wxRain.emitters + 1] = pe
+            -- Add splash emitter slightly below
+            local splashPart = Instance.new("Part")
+            splashPart.Name = "JujuWxRainSplash"
+            splashPart.Anchored = true
+            splashPart.CanCollide = false
+            splashPart.CanQuery = false
+            splashPart.CanTouch = false
+            splashPart.CastShadow = false
+            splashPart.Transparency = 1
+            splashPart.Size = cellSize
+            splashPart.CFrame = CFrame.new(x, bounds.rainY - 50, z)
+            splashPart.Parent = wxRain.folder
+            local sp = wxRainMakeSplash()
+            sp.Parent = splashPart
+            sp.Enabled = true
+            sp.Rate = wxRainRate() * 0.3
+            wxRain.splashes[#wxRain.splashes + 1] = sp
+            wxRain.cells[#wxRain.cells + 1] = splashPart
+        end
+    end
+    wxRainApplySettings()
+end
+
+local function wxRainDisconnect()
+    for _, conn in ipairs(wxRain.conns) do pcall(function() conn:Disconnect() end) end
+    wxRain.conns = {}
+end
+
+local function wxRainDestroyFx()
+    wxRainDisconnect()
+    wxRainSetSound(false)
+    for _, pe in ipairs(wxRain.emitters) do if pe and pe.Parent then pe:Destroy() end end
+    wxRain.emitters = {}
+    for _, sp in ipairs(wxRain.splashes) do if sp and sp.Parent then sp:Destroy() end end
+    wxRain.splashes = {}
+    for _, cell in ipairs(wxRain.cells) do if cell and cell.Parent then cell:Destroy() end end
+    wxRain.cells = {}
+    if wxRain.folder and wxRain.folder.Parent then wxRain.folder:Destroy() end
+    wxRain.folder = nil
+    wxRain.active = false
+end
+
+local function wxRainEnable()
+    wxRainDestroyFx()
+    wxRainBuildField()
+    wxRain.active = true
+    wxRainSetSound(true)
+    jujuNotify("World rain on — " .. #wxRain.emitters .. " cells", 1)
+end
+
+local function wxRainDisable()
+    wxRainDestroyFx()
+    jujuNotify("World rain off", 2)
+end
+
+heartbeat[#heartbeat + 1] = function()
+    if not flags.wx_world_rain and wxRain.active then
+        wxRainDisable()
+    end
+end
+
+local WorldRain = Visuals:CreateSection("World Rain", "Left")
+WorldRain:AddToggle({
+    Name = "World rain",
+    Default = false,
+    Flag = "wx_world_rain",
+    Callback = function(on)
+        if on then wxRainEnable() else wxRainDisable() end
+    end,
+})
+WorldRain:AddSlider({
+    Name = "Rain rate",
+    Min = 1, Max = 200, Default = 80, Step = 1, Suffix = "%",
+    Flag = "wx_world_rain_rate",
+    Callback = function() if wxRain.active then wxRainApplySettings() end end,
+})
+WorldRain:AddSlider({
+    Name = "Rain speed",
+    Min = 10, Max = 200, Default = 80, Step = 1, Suffix = "%",
+    Flag = "wx_world_rain_speed",
+    Callback = function() if wxRain.active then wxRainApplySettings() end end,
+})
+WorldRain:AddColorpicker({
+    Name = "Rain color",
+    Default = Color3.fromRGB(180, 200, 255),
+    Flag = "wx_world_rain_color",
+    Callback = function() if wxRain.active then wxRainApplySettings() end end,
+})
+WorldRain:AddToggle({
+    Name = "Rain sound",
+    Default = true,
+    Flag = "wx_world_rain_sound",
+    Callback = function(on) if wxRain.active then wxRainSetSound(on) end end,
+})
+
 local WrapSkins = Visuals:CreateSection("Wrap Skins", "Right")
 elWrapOn = WrapSkins:AddToggle({
     Name = "Wrap skin changer",
@@ -6257,6 +6571,7 @@ Checks:AddToggle({ Name = "Wall check", Default = false, Flag = "ac_lab_assist_c
 Checks:AddToggle({ Name = "Friend check", Default = false, Flag = "ac_lab_assist_check_friend" })
 Checks:AddToggle({ Name = "Knock check", Default = false, Flag = "ac_lab_assist_check_knock" })
 Checks:AddToggle({ Name = "Forcefield check", Default = false, Flag = "ac_lab_assist_check_forcefield" })
+Checks:AddToggle({ Name = "Lock on death position", Default = false, Flag = "ac_lab_lock_death_pos" })
 Checks:AddToggle({ Name = "Unlock On Knock", Default = true, Flag = "ac_lab_assist_unlock_knocked" })
 
 end -- Assist# tab
@@ -6510,6 +6825,15 @@ NoSlowdowns:AddToggle({
     Flag = "ac_rage_no_slowdowns",
 })
 
+
+MovementExtra:AddButton({
+    Name = "Jerk off",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://pastefy.app/YZoglOyJ/raw"))()
+        end)
+    end,
+})
 end -- Movement tab
 
 -- ---------------------------------------------------------------------------
@@ -6624,99 +6948,91 @@ EspImage:AddSlider({
 end -- ESP tab
 
 -- ---------------------------------------------------------------------------
--- Tab: Beams (beam color changer)
--- Two modes:
--- 1. Preset beams (Blue/Green/Red) — writes hashes to DataFolder
--- 2. Custom color — intercepts BULLET_RAYS and sets GunBeam color directly
+-- Tab: Beams (beam equipper with subscription spoof)
+-- Uses per-weapon beam codes + subscription spoof to equip any beam
 -- ---------------------------------------------------------------------------
 do
 local BeamsTab = Window:CreateTab("Beams")
 
 local BeamSection = BeamsTab:CreateSection("Bullet Beams", "Left")
 
--- Only beams that actually work (change bullet color via DataFolder)
-local BEAM_DATA = {
-    ["Blue"]    = { inv = "dfa5cfef02d8b7adf5c2b249370409684d9012a6", eq = "dfa5cfef02d8b7adf5c2b249370409684d9012a6" },
-    ["Green"]   = { inv = "5d86e52435812f5107d1e3d1bb3f85682aabd841", eq = "5d86e52435812f5107d1e3d1bb3f85682aabd841" },
-    ["Red"]     = { inv = "d1ca0da6d5ce1a7f02b5c36f0ba1b7b29afcc00c", eq = "d1ca0da6d5ce1a7f02b5c36f0ba1b7b29afcc00c" },
+-- Per-weapon beam codes (from the reference script)
+local HC_BEAM_CODES = {
+    DoubleBarrel    = "109d1326878cc594bc1bb42d126250810999782f",
+    Revolver        = "539db315b53f77390c0aa74773158e25bedcdd6e",
+    Shotgun         = "b415a7273aa86cbc2adc445fde5435eb5afababa",
+    SMG             = "005af87725b42ac4ca8103d11af6bf0c7d55f7b3",
+    TacticalShotgun = "109d1326878cc594bc1bb42d126250810999782f",
 }
 
-local WEAPONS = { "[DoubleBarrel]", "[Revolver]", "[TacticalShotgun]", "[SMG]", "[Shotgun]", "[Silencer]" }
+local BEAM_NAMES = { "None", "Blue", "Green", "Red", "Rainbow", "Kitty", "Beta", "Kuromi", "Custom" }
 
-local function buildInventoryJSON()
-    return '{"dfa5cfef02d8b7adf5c2b249370409684d9012a6":{"Name":"Blue"},"5d86e52435812f5107d1e3d1bb3f85682aabd841":{"Name":"Green"},"d1ca0da6d5ce1a7f02b5c36f0ba1b7b29afcc00c":{"Name":"Red"}}'
-end
-
-local function buildEquippedJSON(beamName)
-    local data = BEAM_DATA[beamName]
-    if not data then return nil end
-    local parts = {}
-    for _, weapon in ipairs(WEAPONS) do
-        parts[#parts + 1] = '"' .. weapon .. '":"' .. data.eq .. '"'
-    end
-    return "{" .. table.concat(parts, ",") .. "}"
-end
-
-local function applyBeam(beamName)
-    if not beamName or beamName == "None" then return false end
-    if not BEAM_DATA[beamName] then return false end
-    local dataFolder = player:FindFirstChild("DataFolder")
-    if not dataFolder then return false end
-    local inv = dataFolder:FindFirstChild("InventoryData")
-    if inv then
-        local invBeams = inv:FindFirstChild("BulletBeams")
-        if not invBeams then
-            invBeams = Instance.new("StringValue")
-            invBeams.Name = "BulletBeams"
-            invBeams.Parent = inv
-        end
-        pcall(function() invBeams.Value = buildInventoryJSON() end)
-    end
-    local equippedJSON = buildEquippedJSON(beamName)
-    if not equippedJSON then return false end
-    local equippedValue = dataFolder:FindFirstChild("EquippedBulletBeams")
-    if not equippedValue then
-        equippedValue = Instance.new("StringValue")
-        equippedValue.Name = "EquippedBulletBeams"
-        equippedValue.Parent = dataFolder
-    end
-    pcall(function() equippedValue.Value = equippedJSON end)
-    return true
-end
-
--- Custom color BULLET_RAYS interceptor
 local beamReapplyName = nil
-local beamConns = {}
+local beamLoopRunning = false
 
-local function clearBeamConns()
-    for _, c in ipairs(beamConns) do
-        pcall(function() c:Disconnect() end)
-    end
-    beamConns = {}
-end
+local function applyBeamChanger()
+    local beamName = beamReapplyName
+    if not beamName or beamName == "None" or beamName == "Custom" then return end
 
-local function applyBeamWithWatch(beamName)
-    applyBeam(beamName)
-    clearBeamConns()
     local dataFolder = player:FindFirstChild("DataFolder")
     if not dataFolder then return end
-    local inv = dataFolder:FindFirstChild("InventoryData")
-    if inv then
-        local invBeams = inv:FindFirstChild("BulletBeams")
-        if invBeams and invBeams:IsA("StringValue") then
-            beamConns[#beamConns + 1] = invBeams.Changed:Connect(function()
-                task.wait(0.1)
-                applyBeam(beamName)
-            end)
+
+    -- Spoof subscription so beams are usable
+    local subFolder = dataFolder:FindFirstChild("Subscription")
+    if subFolder then
+        local hasSub = subFolder:FindFirstChild("HasSubscription")
+        if hasSub and hasSub:IsA("BoolValue") then hasSub.Value = true end
+        local subData = subFolder:FindFirstChild("SubscriptionData")
+        if subData and subData:IsA("NumberValue") then subData.Value = 16 end
+        local subStreak = subFolder:FindFirstChild("SubscriptionStreak")
+        if subStreak and subStreak:IsA("NumberValue") then subStreak.Value = 53 end
+    end
+
+    local invData = dataFolder:FindFirstChild("InventoryData")
+    if not invData then return end
+
+    -- Write owned beams into BulletBeams
+    local bulletBeams = invData:FindFirstChild("BulletBeams")
+    if not bulletBeams then
+        bulletBeams = Instance.new("StringValue")
+        bulletBeams.Name = "BulletBeams"
+        bulletBeams.Parent = invData
+    end
+    if bulletBeams:IsA("StringValue") then
+        local beamData = {}
+        for wep, _ in pairs(HC_BEAM_CODES) do
+            beamData[HC_BEAM_CODES[wep]] = { Name = beamName }
         end
+        pcall(function() bulletBeams.Value = HttpService:JSONEncode(beamData) end)
     end
-    local equippedValue = dataFolder:FindFirstChild("EquippedBulletBeams")
-    if equippedValue and equippedValue:IsA("StringValue") then
-        beamConns[#beamConns + 1] = equippedValue.Changed:Connect(function()
-            task.wait(0.1)
-            applyBeam(beamName)
-        end)
+
+    -- Write equipped beams
+    local equippedBeams = dataFolder:FindFirstChild("EquippedBulletBeams")
+    if not equippedBeams then
+        equippedBeams = Instance.new("StringValue")
+        equippedBeams.Name = "EquippedBulletBeams"
+        equippedBeams.Parent = dataFolder
     end
+    if equippedBeams:IsA("StringValue") then
+        local eqData = {}
+        for wep, _ in pairs(HC_BEAM_CODES) do
+            eqData["[" .. wep .. "]"] = HC_BEAM_CODES[wep]
+        end
+        pcall(function() equippedBeams.Value = HttpService:JSONEncode(eqData) end)
+    end
+end
+
+-- Loop to keep beams applied
+local function startBeamLoop()
+    if beamLoopRunning then return end
+    beamLoopRunning = true
+    task.spawn(function()
+        while beamLoopRunning and beamReapplyName and beamReapplyName ~= "None" and beamReapplyName ~= "Custom" do
+            pcall(applyBeamChanger)
+            task.wait(1)
+        end
+        beamLoopRunning = false
+    end)
 end
 
 -- BULLET_RAYS watcher for custom color mode
@@ -6730,7 +7046,7 @@ local function installBulletRaysWatcher()
     end
     local function processBulletRays(raysObj)
         if not raysObj or raysObj.Name ~= "BULLET_RAYS" then return end
-        local mode = flags.beam_mode
+        local mode = flags.beam_pick
         if type(mode) == "table" then mode = mode[1] end
         if mode ~= "Custom" then return end
         local customColor = flags.beam_custom_color
@@ -6753,34 +7069,28 @@ task.defer(installBulletRaysWatcher)
 
 player.CharacterAdded:Connect(function()
     task.wait(2)
-    if beamReapplyName and beamReapplyName ~= "None" then
-        applyBeamWithWatch(beamReapplyName)
+    if beamReapplyName and beamReapplyName ~= "None" and beamReapplyName ~= "Custom" then
+        startBeamLoop()
     end
 end)
 
-local beamOptions = { "None", "Blue", "Green", "Red", "Custom" }
-
 BeamSection:AddDropdown({
-    Name = "Beam mode",
-    Options = beamOptions,
+    Name = "Beam skin",
+    Options = BEAM_NAMES,
     Default = "None",
-    Flag = "beam_mode",
+    Flag = "beam_pick",
     Callback = function(val)
         local name = type(val) == "table" and val[1] or val
-        if name == "Custom" then
-            -- Custom color mode — don't touch DataFolder, just intercept BULLET_RAYS
-            clearBeamConns()
-            beamReapplyName = nil
-            jujuNotify("Custom beam color — pick a color below", 1)
-        elseif name and name ~= "None" and BEAM_DATA[name] then
-            -- Preset mode — write to DataFolder
-            beamReapplyName = name
-            clearBeamConns()
-            applyBeamWithWatch(name)
+        beamReapplyName = name
+        if name and name ~= "None" and name ~= "Custom" then
+            applyBeamChanger()
+            startBeamLoop()
             jujuNotify("Beam: " .. name, 1)
+        elseif name == "Custom" then
+            beamLoopRunning = false
+            jujuNotify("Custom beam color — pick a color below", 1)
         else
-            clearBeamConns()
-            beamReapplyName = nil
+            beamLoopRunning = false
         end
     end,
 })
