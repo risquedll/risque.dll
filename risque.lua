@@ -3571,7 +3571,15 @@ do
         end
         if not acLabAssistAimKeyHeld() then
             acLabStickyClear()
+            acLabState.aimKeyWasHeld = false
+            acLabState.aimPickAttempted = false
             return
+        end
+        -- Only pick a target on the first frame the key is held.
+        -- If no one was in the crosshair, don't try again until key release.
+        if not acLabState.aimKeyWasHeld then
+            acLabState.aimKeyWasHeld = true
+            acLabState.aimPickAttempted = false
         end
         -- Death position lock: keep aiming at last known position with smooth easing
         if flags.ac_lab_lock_death_pos and acLabState.deathLockPos and tick() < (acLabState.deathLockUntil or 0) then
@@ -3606,26 +3614,21 @@ do
         local okStep, errStep = pcall(function()
             local aimPos = nil
             local aimPart = nil
-            local stickyLock = flags.ac_lab_legit_sticky
-            if stickyLock then
+            -- Only pick once per key press. If no target was found on the first
+            -- frame, don't try again — wait for key release + re-press.
+            if not acLabState.aimPickAttempted then
+                acLabState.aimPickAttempted = true
                 if not acLabState.stickyAssistModel and not acLabState.stickyAssistPart then
                     local pick = acLabPickAssistPart(cam)
                     if pick then
                         acLabState.stickyAssistPart = pick
                         acLabState.stickyAssistModel = pick:FindFirstAncestorOfClass("Model")
                     end
-                elseif acLabState.stickyAssistModel and not acLabState.stickyAssistModel.Parent then
-                    acLabStickyClear()
                 end
-                aimPart, aimPos = acLabStickyRefreshAimPart(cam)
-            else
+            elseif acLabState.stickyAssistModel and not acLabState.stickyAssistModel.Parent then
                 acLabStickyClear()
-                local pick = acLabPickAssistPart(cam)
-                if pick then
-                    aimPart = pick
-                    aimPos = acLabStickyAssistTryWorldPos(pick)
-                end
             end
+            aimPart, aimPos = acLabStickyRefreshAimPart(cam)
             if not aimPos or not aimPart then
                 return
             end
@@ -5876,7 +5879,7 @@ WorldSnow:AddToggle({
 })
 
 -- World Rain engine (similar to snow — particle grid, no bullet collision)
-local WX_RAIN_TEXTURE = "http://www.roblox.com/asset/?id=99851851"
+local WX_RAIN_TEXTURE = "rbxassetid://1822883048"
 local WX_RAIN_SOUND = "rbxassetid://1516791621"
 local WX_RAIN_SPLASH_TEXTURE = "rbxassetid://1822856633"
 local wxRain = {
@@ -5918,29 +5921,22 @@ local function wxRainMakeEmitter()
     pe.Name = "RainDrop"
     pe.Texture = WX_RAIN_TEXTURE
     pe.EmissionDirection = Enum.NormalId.Bottom
-    pe.LightEmission = 0.82
-    pe.LightInfluence = 0.35
-    pe.Brightness = 2.1
-    pe.Drag = 0.35
-    pe.SpreadAngle = Vector2.new(18, 18)
-    pe.Rotation = NumberRange.new(0, 360)
-    pe.RotSpeed = NumberRange.new(-20, 20)
-    pe.Size = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 1.15 * 0.55),
-        NumberSequenceKeypoint.new(0.45, 1.15),
-        NumberSequenceKeypoint.new(1, 1.15 * 0.35),
-    })
-    pe.Speed = NumberRange.new(wxRainSpeed())
-    pe.Lifetime = NumberRange.new(2.5, 4.5)
+    pe.LightEmission = 0.05
+    pe.LightInfluence = 0.9
+    pe.Brightness = 1
+    pe.Drag = 0.05
+    pe.SpreadAngle = Vector2.new(1, 1)
+    pe.Size = NumberSequence.new(2)
+    pe.Speed = NumberRange.new(wxRainSpeed(), wxRainSpeed() * 1.1)
+    pe.Lifetime = NumberRange.new(3, 5)
     pe.Rate = wxRainRate()
     pe.Enabled = true
+    pe.LockedToPart = true
     pe.Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0.18),
-        NumberSequenceKeypoint.new(0.08, 0),
-        NumberSequenceKeypoint.new(0.85, 0.06),
-        NumberSequenceKeypoint.new(1, 1),
+        NumberSequenceKeypoint.new(0, 0.3),
+        NumberSequenceKeypoint.new(1, 0.8),
     })
-    pe.Orientation = Enum.ParticleOrientation.FacingCamera
+    pe.Orientation = Enum.ParticleOrientation.FacingCameraWorldUp
     pe.Color = ColorSequence.new(wxRainColor3())
     return pe
 end
@@ -6001,12 +5997,12 @@ local function wxRainMeasureMap()
     if not found then
         local cam = Workspace.CurrentCamera
         local p = cam and cam.CFrame.Position or Vector3.zero
-        return { minX = p.X - 220, maxX = p.X + 220, minZ = p.Z - 220, maxZ = p.Z + 220, rainY = p.Y + 90 }
+        return { minX = p.X - 220, maxX = p.X + 220, minZ = p.Z - 220, maxZ = p.Z + 220, rainY = p.Y + 30 }
     end
     return {
         minX = minX - 60, maxX = maxX + 60,
         minZ = minZ - 60, maxZ = maxZ + 60,
-        rainY = maxY + 75,
+        rainY = maxY + 20,
     }
 end
 
@@ -6074,7 +6070,7 @@ local function wxRainBuildField()
             splashPart.CastShadow = false
             splashPart.Transparency = 1
             splashPart.Size = cellSize
-            splashPart.CFrame = CFrame.new(x, bounds.rainY - 50, z)
+            splashPart.CFrame = CFrame.new(x, bounds.rainY - 15, z)
             splashPart.Parent = wxRain.folder
             local sp = wxRainMakeSplash()
             sp.Parent = splashPart
